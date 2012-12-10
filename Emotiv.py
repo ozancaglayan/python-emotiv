@@ -35,7 +35,10 @@ class EmotivEPOC(object):
         self.MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
         
         # One can want to specify the dongle with its serial
-        self.serial = serialNumber
+        self.serialNumber = serialNumber
+
+        # Serial number indexed device map
+        self.devices = {}
 
     def _is_emotiv_epoc(self, device):
         """Custom match function for libusb."""
@@ -50,8 +53,10 @@ class EmotivEPOC(object):
                     return True
 
     def enumerate(self):
-        self.devices = usb.core.find(find_all=True,
-                custom_match=self._is_emotiv_epoc)
+        for dev in usb.core.find(find_all=True, custom_match=self._is_emotiv_epoc):
+            serno = usb.util.get_string(dev, 32, dev.iSerialNumber)
+            if self.serialNumber and self.serialNumber == serno:
+                self.devices[serno] = dev
 
     def connect(self):
         pass
@@ -70,3 +75,12 @@ class EmotivEPOC(object):
 
     def disconnect(self):
         pass
+
+if __name__ == "__main__":
+
+    emotiv = EmotivEPOC("SN20120229000459")
+
+    print "Enumerating devices..."
+    emotiv.enumerate()
+    for k,v in emotiv.devices.iteritems():
+        print "Found dongle with S/N: %s" % k
