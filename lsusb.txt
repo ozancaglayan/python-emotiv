@@ -1,0 +1,126 @@
+
+Bus 004 Device 002: ID 1234:ed02 Brain Actuated Technologies Emotiv EPOC Developer Headset Wireless Dongle
+Device Descriptor:
+  bLength                18
+  bDescriptorType         1
+  bcdUSB               2.00
+  bDeviceClass            0 (Defined at Interface level)
+  bDeviceSubClass         0 
+  bDeviceProtocol         0 
+  bMaxPacketSize0         8
+  idVendor           0x1234 Brain Actuated Technologies
+  idProduct          0xed02 Emotiv EPOC Developer Headset Wireless Dongle
+  bcdDevice            0.03
+  iManufacturer           1 Emotiv Systems Pty Ltd
+  iProduct                2 Receiver Dongle L01
+  iSerial                 3 SN20120229000459
+  bNumConfigurations      1
+  Configuration Descriptor:
+    bLength                 9
+    bDescriptorType         2
+    wTotalLength           59
+    bNumInterfaces          2
+    bConfigurationValue     1
+    iConfiguration          0 
+    bmAttributes         0x80
+      (Bus Powered)
+    MaxPower              100mA
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        0
+      bAlternateSetting       0
+      bNumEndpoints           1
+      bInterfaceClass         3 Human Interface Device
+      bInterfaceSubClass      0 No Subclass
+      bInterfaceProtocol      0 None
+      iInterface              0 
+        HID Device Descriptor:
+          bLength                 9
+          bDescriptorType        33
+          bcdHID               1.11
+          bCountryCode           33 US
+          bNumDescriptors         1
+          bDescriptorType        34 Report
+          wDescriptorLength      20
+          Report Descriptor: (length is 20)
+            Item(Global): Usage Page, data= [ 0xff 0xf0 ] 61695
+                            (null)
+            Item(Local ): Usage, data= [ 0x10 ] 16
+                            (null)
+            Item(Main  ): Collection, data= [ 0x00 ] 0
+                            Physical
+            Item(Local ): Usage, data= [ 0x11 ] 17
+                            (null)
+            Item(Global): Report Size, data= [ 0x08 ] 8
+            Item(Global): Report Count, data= [ 0x03 ] 3
+            Item(Global): Logical Minimum, data= [ 0x81 ] 129
+            Item(Global): Logical Maximum, data= [ 0x7f ] 127
+            Item(Main  ): Input, data= [ 0x02 ] 2
+                            Data Variable Absolute No_Wrap Linear
+                            Preferred_State No_Null_Position Non_Volatile Bitfield
+            Item(Main  ): End Collection, data=none
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x81  EP 1 IN
+        bmAttributes            3
+          Transfer Type            Interrupt
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0008  1x 8 bytes
+        bInterval               1
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        1
+      bAlternateSetting       0
+      bNumEndpoints           1
+      bInterfaceClass         3 Human Interface Device
+      bInterfaceSubClass      0 No Subclass
+      bInterfaceProtocol      0 None
+      iInterface              4 Emotiv RAW DATA
+        HID Device Descriptor:
+          bLength                 9
+          bDescriptorType        33
+          bcdHID               1.11
+          bCountryCode            0 Not supported
+          bNumDescriptors         1
+          bDescriptorType        34 Report
+          wDescriptorLength      28
+          Report Descriptor: (length is 28)
+            Item(Global): Usage Page, data= [ 0xff 0xff ] 65535
+                            (null)
+            Item(Local ): Usage, data= [ 0x02 ] 2
+                            (null)
+            Item(Main  ): Collection, data= [ 0x00 ] 0
+                            Physical
+            Item(Local ): Usage, data= [ 0x03 ] 3
+                            (null)
+            Item(Global): Report Size, data= [ 0x08 ] 8
+            Item(Global): Report Count, data= [ 0x20 ] 32
+            Item(Global): Logical Minimum, data= [ 0x81 ] 129
+            Item(Global): Logical Maximum, data= [ 0x7f ] 127
+            Item(Main  ): Input, data= [ 0x02 ] 2
+                            Data Variable Absolute No_Wrap Linear
+                            Preferred_State No_Null_Position Non_Volatile Bitfield
+            Item(Local ): Usage, data= [ 0x04 ] 4
+                            (null)
+            Item(Global): Report Size, data= [ 0x08 ] 8
+            Item(Global): Report Count, data= [ 0x06 ] 6
+            Item(Main  ): Feature, data= [ 0x02 ] 2
+                            Data Variable Absolute No_Wrap Linear
+                            Preferred_State No_Null_Position Non_Volatile Bitfield
+            Item(Main  ): End Collection, data=none
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x82  EP 2 IN
+        bmAttributes            3
+          Transfer Type            Interrupt
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0020  1x 32 bytes
+        bInterval               1
+Device Status:     0x0000
+  (Bus Powered)
