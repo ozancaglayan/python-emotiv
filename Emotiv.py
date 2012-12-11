@@ -67,7 +67,7 @@ class EmotivEPOC(object):
                                        device.iManufacturer)
         except usb.core.USBError, ue:
             # Skip failing devices as it happens on Raspberry Pi
-            if ue.errno == 32
+            if ue.errno == 32:
                 return False
 
         if manu == self.MANUFACTURER_DESC:
