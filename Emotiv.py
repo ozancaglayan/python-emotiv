@@ -62,8 +62,14 @@ class EmotivEPOC(object):
 
     def _is_emotiv_epoc(self, device):
         """Custom match function for libusb."""
-        manu = usb.util.get_string(device, len(self.MANUFACTURER_DESC),
-                                   device.iManufacturer)
+        try:
+            manu = usb.util.get_string(device, len(self.MANUFACTURER_DESC),
+                                       device.iManufacturer)
+        except usb.core.USBError, ue:
+            # Skip failing devices as it happens on Raspberry Pi
+            if ue.errno == 32
+                return False
+
         if manu == self.MANUFACTURER_DESC:
             # Found a dongle, check for interface class 3
             for interf in device.get_active_configuration():
