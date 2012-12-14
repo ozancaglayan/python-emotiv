@@ -217,17 +217,16 @@ class EmotivEPOC(object):
         from the acquired values to maintain the baseline at (0,0)"""
         pass
 
-    def connect(self):
-        pass
-
-    def waitForContact(self):
-        pass
-
-    def getContactQuality(self):
-        pass
+    def getContactQuality(self, electrode):
+        "Return contact quality for the specified electrode."""
+        try:
+            return self.quality[electrode]
+        except KeyError, ke:
+            print("Electrode name %s is wrong." % electrode)
 
     def getBatteryLevel(self):
-        pass
+        """Returns the battery level."""
+        return self.battery
 
     def disconnect(self):
         """Release the claimed interfaces."""
