@@ -27,11 +27,13 @@ import usb.util
 
 import numpy as np
 
+from bitstring import BitArray
+
 from matplotlib import pyplot as plt
+from Crypto.Cipher import AES
 
 class EmotivEPOCNotFoundException(Exception):
     pass
-
 
 class EmotivEPOC(object):
     def __init__(self, serialNumber=None):
@@ -54,6 +56,33 @@ class EmotivEPOC(object):
                         'Quality 01', 'Quality O2', 'Quality P8',
                         'Quality T8', 'Quality F8', 'Quality AF4',
                         'Quality FC6', 'Quality F4']
+
+        # Battery levels
+        self.battery_levels = {247:99,
+                               246:97,
+                               245:93,
+                               244:89,
+                               243:85,
+                               242:82,
+                               241:77,
+                               240:72,
+                               239:66,
+                               238:62,
+                               237:55,
+                               236:46,
+                               235:32,
+                               234:20,
+                               233:12,
+                               232: 6,
+                               231: 4,
+                               230: 3,
+                               229: 2,
+                               228: 1,
+                               227: 1,
+                               226: 1,
+                               }
+        self.battery_levels.update(dict([(k,100) for k in range(248, 256)]))
+        self.battery_levels.update(dict([(k,0)   for k in range(128, 226)]))
 
         # One can want to specify the dongle with its serial
         self.serialNumber = serialNumber
@@ -130,31 +159,20 @@ class EmotivEPOC(object):
                                 self.serialNumber[13], '\x00',
                                 self.serialNumber[12], '\x50'])
 
-        from Crypto.Cipher import AES
         self.cipher = AES.new(self.key)
-
-    def decryptData(self, rawData):
-        """Decrypts a raw data packet."""
-        unencryptedData = self.cipher.decrypt(rawData[:16]) +\
-                          self.cipher.decrypt(rawData[16:])
-
-        # FIXME: What's this?
-        tmp = 0
-        for i in range(32):
-            tmp = tmp << 8
-            tmp += ord(unencryptedData[i])
-
-        return tmp
 
     def acquireData(self):
         try:
             raw = self.endpoints[self.serialNumber].read(32, timeout=1000)
-            print(self.decryptData(raw))
-        except Exception as e:
+            bits = BitArray(bytes=self.cipher.decrypt(raw))
+        except usb.USBError as e:
             if e.errno == 110:
                 print("Make sure that headset is turned on.")
             else:
                 print(e)
+
+        if bits[0]:
+            print("Battery level: %u" % (self.battery_levels[bits[0:8].uint]))
 
     def connect(self):
         pass
@@ -169,7 +187,13 @@ class EmotivEPOC(object):
         pass
 
     def disconnect(self):
-        pass
+        """Release the claimed interfaces."""
+
+        for dev in self.devices.values():
+            cfg = dev.get_active_configuration()
+
+            for interf in dev.get_active_configuration():
+                usb.util.release_interface(dev, interf.bInterfaceNumber)
 
 if __name__ == "__main__":
 
@@ -190,4 +214,5 @@ if __name__ == "__main__":
         while True:
             emotiv.acquireData()
     except KeyboardInterrupt, ke:
+        emotiv.disconnect()
         sys.exit(1)
