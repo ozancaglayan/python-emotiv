@@ -43,7 +43,6 @@ class EmotivEPOC(object):
         # These seem to be the same for every device
         self.INTERFACE_DESC = "Emotiv RAW DATA"
         self.MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
-        self.ENDPOINT_IN = usb.util.ENDPOINT_IN | 2
 
         # Channel names
         self.channels = ['Counter', 'Battery',
@@ -61,6 +60,7 @@ class EmotivEPOC(object):
 
         # Serial number indexed device map
         self.devices = {}
+        self.endpoints = {}
 
     def _is_emotiv_epoc(self, device):
         """Custom match function for libusb."""
@@ -88,18 +88,20 @@ class EmotivEPOC(object):
 
         for dev in devs:
             sn = usb.util.get_string(dev, 32, dev.iSerialNumber)
+            cfg = dev.get_active_configuration()
+
+            for interf in dev.get_active_configuration():
+                if dev.is_kernel_driver_active(interf.bInterfaceNumber):
+                    # Detach kernel drivers and claim through libusb
+                    dev.detach_kernel_driver(interf.bInterfaceNumber)
+                    usb.util.claim_interface(dev, interf.bInterfaceNumber)
+
+            # 2nd interface is the one we need
+            self.endpoints[sn] = usb.util.find_descriptor(interf,
+                                 bEndpointAddress=usb.ENDPOINT_IN|2)
+
             self.devices[sn] = dev
             self.serialNumber = sn
-
-            # Detach possible kernel drivers
-            if dev.is_kernel_driver_active(0):
-                dev.detach_kernel_driver(0)
-            if dev.is_kernel_driver_active(1):
-                dev.detach_kernel_driver(1)
-
-            # Claim interfaces before using
-            usb.util.claim_interface(dev, 0)
-            usb.util.claim_interface(dev, 1)
 
             # FIXME: Default to the first device for now
             break
@@ -146,8 +148,7 @@ class EmotivEPOC(object):
 
     def acquireData(self):
         try:
-            raw = self.devices[self.serialNumber].read(self.ENDPOINT_IN, 32,
-                               1, timeout=1000)
+            raw = self.endpoints[self.serialNumber].read(32, timeout=1000)
             print(self.decryptData(raw))
         except Exception as e:
             if e.errno == 110:
