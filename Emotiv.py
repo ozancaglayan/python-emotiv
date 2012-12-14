@@ -32,6 +32,20 @@ from bitstring import BitArray
 from matplotlib import pyplot as plt
 from Crypto.Cipher import AES
 
+class EmotivEPOCContactQuality(object):
+    def __init__(self):
+        # For counter values between 0-15
+        self.cqs = ["F3", "FC5", "AF3", "F7", "T7",  "P7",  "O1",
+                    "O2", "P8",  "T8",  "F8", "AF4", "FC8", "F4",
+                    "F8", "AF4"]
+        # 16-63 is unknown
+        self.cqs.extend(["N/A",] * 48)
+        # Now the first 16 values repeat once more + 'FC6'
+        self.cqs.extend(self.cqs[:16])
+        self.cqs.append("FC6")
+        # Now 77-80 which will repeat until 127
+        self.cqs.extend(self.cqs[-4:] * 12)
+
 class EmotivEPOCNotFoundException(Exception):
     pass
 
@@ -46,40 +60,24 @@ class EmotivEPOC(object):
         self.INTERFACE_DESC = "Emotiv RAW DATA"
         self.MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
 
-        # Channel names
-        self.channels = ['Counter', 'Battery',
-                        'F3', 'FC5', 'AF3', 'F7', 'T7', 'P7', 'O1',
-                        'O2', 'P8', 'T8', 'F8', 'AF4', 'FC6', 'F4',
-                        'GyroX', 'GyroY',
-                        'Quality F3', 'Quality FC5', 'Quality AF3',
-                        'Quality F7', 'Quality T7', 'Quality P7',
-                        'Quality 01', 'Quality O2', 'Quality P8',
-                        'Quality T8', 'Quality F8', 'Quality AF4',
-                        'Quality FC6', 'Quality F4']
+        self.cq = EmotivEPOCContactQuality()
+
+        ##################
+        # ADC parameters #
+        # ################
+
+        # Sampling rate: 128Hz (Internal: 2048Hz)
+        self.sampling_rate = 128
+
+        # Vertical resolution (0.51 microVolt)
+        self.resolution = 0.51
 
         # Battery levels
-        self.battery_levels = {247:99,
-                               246:97,
-                               245:93,
-                               244:89,
-                               243:85,
-                               242:82,
-                               241:77,
-                               240:72,
-                               239:66,
-                               238:62,
-                               237:55,
-                               236:46,
-                               235:32,
-                               234:20,
-                               233:12,
-                               232: 6,
-                               231: 4,
-                               230: 3,
-                               229: 2,
-                               228: 1,
-                               227: 1,
-                               226: 1,
+        self.battery_levels = {247:99, 246:97, 245:93, 244:89, 243:85,
+                               242:82, 241:77, 240:72, 239:66, 238:62,
+                               237:55, 236:46, 235:32, 234:20, 233:12,
+                               232: 6, 231: 4, 230: 3, 229: 2, 228: 1,
+                               227: 1, 226: 1,
                                }
         self.battery_levels.update(dict([(k,100) for k in range(248, 256)]))
         self.battery_levels.update(dict([(k,0)   for k in range(128, 226)]))
@@ -90,6 +88,24 @@ class EmotivEPOC(object):
         # Serial number indexed device map
         self.devices = {}
         self.endpoints = {}
+
+        # Acquired data
+        self.counter = 0
+        self.battery = 0
+        self.gyroX   = 0
+        self.gyroY   = 0
+        self.quality = {
+                            "F3" : 0, "FC5" : 0, "AF3" : 0, "F7" : 0,
+                            "T7" : 0, "P7"  : 0, "O1"  : 0, "O2" : 0,
+                            "P8" : 0, "T8"  : 0, "F8"  : 0, "AF4": 0,
+                            "FC6": 0, "F4"  : 0,
+                       }
+        self.eegData = {
+                            "F3" : 0, "FC5" : 0, "AF3" : 0, "F7" : 0,
+                            "T7" : 0, "P7"  : 0, "O1"  : 0, "O2" : 0,
+                            "P8" : 0, "T8"  : 0, "F8"  : 0, "AF4": 0,
+                            "FC6": 0, "F4"  : 0,
+                       }
 
     def _is_emotiv_epoc(self, device):
         """Custom match function for libusb."""
@@ -137,8 +153,8 @@ class EmotivEPOC(object):
 
     def setupEncryption(self, research=True):
         """Generate the encryption key and setup Crypto module.
-        The key is based on the serial number of the device and the information
-        whether it is a research or consumer device.
+        The key is based on the serial number of the device and the
+        information whether it is a research or consumer device.
         """
         if research:
             self.key = ''.join([self.serialNumber[15], '\x00',
@@ -171,8 +187,35 @@ class EmotivEPOC(object):
             else:
                 print(e)
 
-        if bits[0]:
-            print("Battery level: %u" % (self.battery_levels[bits[0:8].uint]))
+        else:
+            # Counter / Battery
+            if bits[0]:
+                self.battery = self.battery_levels[bits[0:8].uint]
+            else:
+                self.counter = bits[0:8].uint
+
+                # Connection quality available with counters
+                c = bits[107:121]
+
+                electrode = self.cq.cqs[self.counter]
+                if electrode != "N/A":
+                    self.quality[electrode] = c.uint / float(540)
+                    print("Quality of %s is %f" % (electrode,
+                                                   self.quality[electrode]))
+
+            # Gyroscope
+            self.gyroX = bits[233:240].uint
+            self.gyroY = bits[240:248].uint
+
+            print("#%3d - Battery: %d, Gyro(%d, %d)" % (self.counter,
+                                                       self.battery,
+                                                       self.gyroX,
+                                                       self.gyroY))
+
+    def calibrateGyro(self):
+        """Gyroscope has a baseline value. We can subtract that
+        from the acquired values to maintain the baseline at (0,0)"""
+        pass
 
     def connect(self):
         pass
