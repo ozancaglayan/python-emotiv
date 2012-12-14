@@ -17,6 +17,8 @@
 ## along with this program; if not, write to the Free Software
 ## Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+from __future__ import print_function
+
 import os
 import sys
 
@@ -146,9 +148,12 @@ class EmotivEPOC(object):
         try:
             raw = self.devices[self.serialNumber].read(self.ENDPOINT_IN, 32,
                                1, timeout=1000)
-            print self.decryptData(raw)
+            print(self.decryptData(raw))
         except Exception as e:
-            print e
+            if e.errno == 110:
+                print("Make sure that headset is turned on.")
+            else:
+                print(e)
 
     def connect(self):
         pass
@@ -173,10 +178,10 @@ if __name__ == "__main__":
     else:
         emotiv = EmotivEPOC()
 
-    print "Enumerating devices..."
+    print("Enumerating devices...")
     emotiv.enumerate()
     for k,v in emotiv.devices.iteritems():
-        print "Found dongle with S/N: %s" % k
+        print("Found dongle with S/N: %s" % k)
 
     emotiv.setupEncryption()
 
