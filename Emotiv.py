@@ -117,14 +117,17 @@ class EmotivEPOC(object):
             # Skip failing devices as it happens on Raspberry Pi
             if ue.errno == 32:
                 return False
-
-        if manu == self.MANUFACTURER_DESC:
-            # Found a dongle, check for interface class 3
-            for interf in device.get_active_configuration():
-                ifStr = usb.util.get_string(device, len(self.INTERFACE_DESC),
-                                            interf.iInterface)
-                if ifStr == self.INTERFACE_DESC:
-                    return True
+            elif ue.errno == 13:
+                self.permissionProblem = True
+                pass
+        else:
+            if manu == self.MANUFACTURER_DESC:
+                # Found a dongle, check for interface class 3
+                for interf in device.get_active_configuration():
+                    ifStr = usb.util.get_string(device, len(self.INTERFACE_DESC),
+                                                interf.iInterface)
+                    if ifStr == self.INTERFACE_DESC:
+                        return True
 
     def enumerate(self):
         devs = usb.core.find(find_all=True, custom_match=self._is_emotiv_epoc)
@@ -267,7 +270,16 @@ if __name__ == "__main__":
         emotiv = EmotivEPOC()
 
     print("Enumerating devices...")
-    emotiv.enumerate()
+    try:
+        emotiv.enumerate()
+    except EmotivEPOCNotFoundException, e:
+        if emotiv.permissionProblem:
+            print("Please make sure that device permissions are handled.")
+        else:
+            print("Please make sure that device permissions are handled or"\
+                    " at least 1 Emotiv EPOC dongle is plugged.")
+        sys.exit(1)
+
     for k,v in emotiv.devices.iteritems():
         print("Found dongle with S/N: %s" % k)
 
