@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import os
 import sys
+import time
 
 import usb.core
 import usb.util
@@ -178,6 +179,7 @@ class EmotivEPOC(object):
         self.cipher = AES.new(self.key)
 
     def acquireData(self):
+        ts_start = time.time()
         try:
             raw = self.endpoints[self.serialNumber].read(32, timeout=1000)
             bits = BitArray(bytes=self.cipher.decrypt(raw))
@@ -200,17 +202,36 @@ class EmotivEPOC(object):
                 electrode = self.cq.cqs[self.counter]
                 if electrode != "N/A":
                     self.quality[electrode] = c.uint / float(540)
-                    print("Quality of %s is %f" % (electrode,
-                                                   self.quality[electrode]))
+                    #print("Quality of %s is %f" % (electrode,
+                                                   #self.quality[electrode]))
+
+            # Channels
+            self.eegData["AF3"]  = bits[36:50].uint
+            self.eegData["AF4"] = bits[190:204].uint
+            self.eegData["F3"] = bits[8:22].uint
+            self.eegData["F4"] = bits[218:232].uint
+            self.eegData["F7"] = bits[50:64].uint
+            self.eegData["F8"] = bits[176:190].uint
+            self.eegData["FC5"] = bits[22:36].uint
+            self.eegData["FC6"] = bits[204:218].uint
+            self.eegData["O1"] = bits[92:106].uint
+            self.eegData["O2"] = bits[134:148].uint
+            self.eegData["P7"] = bits[78:92].uint
+            self.eegData["P8"] = bits[148:162].uint
+            self.eegData["T7"] = bits[64:78].uint
+            self.eegData["T8"] = bits[162:176].uint
 
             # Gyroscope
             self.gyroX = bits[233:240].uint
             self.gyroY = bits[240:248].uint
 
-            print("#%3d - Battery: %d, Gyro(%d, %d)" % (self.counter,
-                                                       self.battery,
-                                                       self.gyroX,
-                                                       self.gyroY))
+            #print("#%3d - Battery: %d, Gyro(%d, %d)" % (self.counter,
+                                                       #self.battery,
+                                                       #self.gyroX,
+                                                       #self.gyroY))
+
+            print("---> acquireData() finished in %.2f" %
+                    (time.time()-ts_start))
 
     def calibrateGyro(self):
         """Gyroscope has a baseline value. We can subtract that
