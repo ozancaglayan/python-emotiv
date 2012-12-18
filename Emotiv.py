@@ -225,8 +225,8 @@ class EmotivEPOC(object):
             self.eegData["T8"] = bits[162:176].uint
 
             # Gyroscope
-            self.gyroX = bits[233:240].uint
-            self.gyroY = bits[240:248].uint
+            self.gyroX = bits[233:240].uint - 106
+            self.gyroY = bits[240:248].uint - 106
 
             #print("#%3d - Battery: %d, Gyro(%d, %d)" % (self.counter,
                                                        #self.battery,
