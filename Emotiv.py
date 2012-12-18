@@ -182,7 +182,7 @@ class EmotivEPOC(object):
         self.cipher = AES.new(self.key)
 
     def acquireData(self):
-        ts_start = time.time()
+        #ts_start = time.time()
         try:
             raw = self.endpoints[self.serialNumber].read(32, timeout=1000)
             bits = BitArray(bytes=self.cipher.decrypt(raw))
@@ -205,8 +205,6 @@ class EmotivEPOC(object):
                 electrode = self.cq.cqs[self.counter]
                 if electrode != "N/A":
                     self.quality[electrode] = c.uint / float(540)
-                    #print("Quality of %s is %f" % (electrode,
-                                                   #self.quality[electrode]))
 
             # Channels
             self.eegData["AF3"]  = bits[36:50].uint
@@ -227,14 +225,6 @@ class EmotivEPOC(object):
             # Gyroscope
             self.gyroX = bits[233:240].uint - 106
             self.gyroY = bits[240:248].uint - 106
-
-            #print("#%3d - Battery: %d, Gyro(%d, %d)" % (self.counter,
-                                                       #self.battery,
-                                                       #self.gyroX,
-                                                       #self.gyroY))
-
-            print("---> acquireData() finished in %.2f" %
-                    (time.time()-ts_start))
 
     def calibrateGyro(self):
         """Gyroscope has a baseline value. We can subtract that
