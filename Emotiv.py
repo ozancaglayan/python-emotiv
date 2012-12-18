@@ -37,7 +37,7 @@ class EmotivEPOCContactQuality(object):
     def __init__(self):
         # For counter values between 0-15
         self.cqs = ["F3", "FC5", "AF3", "F7", "T7",  "P7",  "O1",
-                    "O2", "P8",  "T8",  "F8", "AF4", "FC8", "F4",
+                    "O2", "P8",  "T8",  "F8", "AF4", "FC6", "F4",
                     "F8", "AF4"]
         # 16-63 is unknown
         self.cqs.extend(["N/A",] * 48)
