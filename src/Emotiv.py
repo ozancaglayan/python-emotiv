@@ -33,6 +33,8 @@ from bitstring import BitArray
 from matplotlib import pyplot as plt
 from Crypto.Cipher import AES
 
+from Enums import *
+
 class EmotivEPOCContactQuality(object):
     def __init__(self):
         # For counter values between 0-15
