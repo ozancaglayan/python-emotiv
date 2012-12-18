@@ -65,6 +65,7 @@ class EmotivEPOC(object):
 
         self.cq = EmotivEPOCContactQuality()
 
+
         ##################
         # ADC parameters #
         # ################
@@ -74,6 +75,11 @@ class EmotivEPOC(object):
 
         # Vertical resolution (0.51 microVolt)
         self.resolution = 0.51
+
+        # Each channel has 14 bits of data
+        self.ch_bits = 14
+
+        self.ch_buffer = np.ndarray([14, self.sampling_rate])
 
         # Battery levels
         self.battery_levels = {247:99, 246:97, 245:93, 244:89, 243:85,
@@ -209,20 +215,22 @@ class EmotivEPOC(object):
                     self.quality[electrode] = c.uint / float(540)
 
             # Channels
-            self.eegData["AF3"]  = bits[36:50].uint
-            self.eegData["AF4"] = bits[190:204].uint
-            self.eegData["F3"] = bits[8:22].uint
-            self.eegData["F4"] = bits[218:232].uint
-            self.eegData["F7"] = bits[50:64].uint
-            self.eegData["F8"] = bits[176:190].uint
-            self.eegData["FC5"] = bits[22:36].uint
-            self.eegData["FC6"] = bits[204:218].uint
-            self.eegData["O1"] = bits[92:106].uint
-            self.eegData["O2"] = bits[134:148].uint
-            self.eegData["P7"] = bits[78:92].uint
-            self.eegData["P8"] = bits[148:162].uint
-            self.eegData["T7"] = bits[64:78].uint
-            self.eegData["T8"] = bits[162:176].uint
+            self.ch_buffer[CH_AF3, self.counter]  = bits[36:50].uint
+            self.ch_buffer[CH_AF4, self.counter] = bits[190:204].uint
+            self.ch_buffer[CH_F3, self.counter] = bits[8:22].uint
+            self.ch_buffer[CH_F4, self.counter] = bits[218:232].uint
+            self.ch_buffer[CH_F7, self.counter] = bits[50:64].uint
+            self.ch_buffer[CH_F8, self.counter] = bits[176:190].uint
+            self.ch_buffer[CH_FC5, self.counter] = bits[22:36].uint
+            self.ch_buffer[CH_FC6, self.counter] = bits[204:218].uint
+            self.ch_buffer[CH_O1, self.counter] = bits[92:106].uint
+            self.ch_buffer[CH_O2, self.counter] = bits[134:148].uint
+            self.ch_buffer[CH_P7, self.counter] = bits[78:92].uint
+            self.ch_buffer[CH_P8, self.counter] = bits[148:162].uint
+            self.ch_buffer[CH_T7, self.counter] = bits[64:78].uint
+            self.ch_buffer[CH_T8, self.counter] = bits[162:176].uint
+
+            #print(self.ch_buffer)
 
             # Gyroscope
             self.gyroX = bits[233:240].uint - 106
@@ -232,6 +240,14 @@ class EmotivEPOC(object):
         """Gyroscope has a baseline value. We can subtract that
         from the acquired values to maintain the baseline at (0,0)"""
         pass
+
+    def getGyroX(self):
+        self.acquireData()
+        yield self.gyroX
+
+    def getGyroY(self):
+        self.acquireData()
+        yield self.gyroY
 
     def getContactQuality(self, electrode):
         "Return contact quality for the specified electrode."""
