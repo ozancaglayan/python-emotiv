@@ -54,17 +54,11 @@ class EmotivEPOCNotFoundException(Exception):
 
 class EmotivEPOC(object):
     def __init__(self, serialNumber=None):
-        # Apparently these can change from dongle to dongle
-        # so leave this just for reference
-        # self.EPOC_VID = 0x1234
-        # self.EPOC_PID = 0xED02
-
         # These seem to be the same for every device
         self.INTERFACE_DESC = "Emotiv RAW DATA"
         self.MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
 
         self.cq = EmotivEPOCContactQuality()
-
 
         ##################
         # ADC parameters #
