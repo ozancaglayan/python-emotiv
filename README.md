@@ -11,6 +11,23 @@ Parts of the project are inspired from
 [emokit](https://github.com/openyou/emokit) which is the pioneer of the
 reverse-engineered protocol.
 
+Dependencies
+============
+
+* [pyusb](http://sourceforge.net/projects/pyusb) (Version >= 1.0)
+* [pycrypto](https://www.dlitz.net/software/pycrypto)
+* [python-bitstring](http://code.google.com/p/python-bitstring)
+* numpy
+* matplotlib
+* scipy (in the future)
+
+Installation
+============
+
+Copy the relevant udev rule under /etc/udev/rules.d before plugging the EPOC
+dongle for being able to run this as a non-root user.
+
+
 Authors
 =======
 
