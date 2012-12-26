@@ -72,16 +72,19 @@ class EmotivEPOC(object):
         # Each channel has 14 bits of data
         self.ch_bits = 14
 
-        self.ch_buffer = np.ndarray([14, self.sampling_rate])
+        self.ch_buffer = np.ndarray([self.ch_bits, self.sampling_rate])
 
         # Battery levels
+        # github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
         self.battery_levels = {247:99, 246:97, 245:93, 244:89, 243:85,
                                242:82, 241:77, 240:72, 239:66, 238:62,
                                237:55, 236:46, 235:32, 234:20, 233:12,
                                232: 6, 231: 4, 230: 3, 229: 2, 228: 1,
                                227: 1, 226: 1,
                                }
+        # 100% for bit values between 248-255
         self.battery_levels.update(dict([(k,100) for k in range(248, 256)]))
+        # 0% for bit values between 128-225
         self.battery_levels.update(dict([(k,0)   for k in range(128, 226)]))
 
         # One can want to specify the dongle with its serial
