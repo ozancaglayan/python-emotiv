@@ -215,22 +215,20 @@ class EmotivEPOC(object):
                     self.quality[electrode] = c.uint / float(540)
 
             # Channels
-            self.ch_buffer[CH_AF3, self.counter]  = bits[36:50].uint
-            self.ch_buffer[CH_AF4, self.counter] = bits[190:204].uint
             self.ch_buffer[CH_F3, self.counter] = bits[8:22].uint
-            self.ch_buffer[CH_F4, self.counter] = bits[218:232].uint
+            self.ch_buffer[CH_FC5,self.counter] = bits[22:36].uint
+            self.ch_buffer[CH_AF3,self.counter] = bits[36:50].uint
             self.ch_buffer[CH_F7, self.counter] = bits[50:64].uint
-            self.ch_buffer[CH_F8, self.counter] = bits[176:190].uint
-            self.ch_buffer[CH_FC5, self.counter] = bits[22:36].uint
-            self.ch_buffer[CH_FC6, self.counter] = bits[204:218].uint
+            self.ch_buffer[CH_T7, self.counter] = bits[64:78].uint
+            self.ch_buffer[CH_P7, self.counter] = bits[78:92].uint
             self.ch_buffer[CH_O1, self.counter] = bits[92:106].uint
             self.ch_buffer[CH_O2, self.counter] = bits[134:148].uint
-            self.ch_buffer[CH_P7, self.counter] = bits[78:92].uint
             self.ch_buffer[CH_P8, self.counter] = bits[148:162].uint
-            self.ch_buffer[CH_T7, self.counter] = bits[64:78].uint
             self.ch_buffer[CH_T8, self.counter] = bits[162:176].uint
-
-            #print(self.ch_buffer)
+            self.ch_buffer[CH_F8, self.counter] = bits[176:190].uint
+            self.ch_buffer[CH_AF4,self.counter] = bits[190:204].uint
+            self.ch_buffer[CH_FC6,self.counter] = bits[204:218].uint
+            self.ch_buffer[CH_F4, self.counter] = bits[218:232].uint
 
             # Gyroscope
             self.gyroX = bits[233:240].uint - 106
