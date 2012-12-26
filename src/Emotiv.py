@@ -35,20 +35,6 @@ from Crypto.Cipher import AES
 
 from Enums import *
 
-class EmotivEPOCContactQuality(object):
-    def __init__(self):
-        # For counter values between 0-15
-        self.cqs = ["F3", "FC5", "AF3", "F7", "T7",  "P7",  "O1",
-                    "O2", "P8",  "T8",  "F8", "AF4", "FC6", "F4",
-                    "F8", "AF4"]
-        # 16-63 is unknown
-        self.cqs.extend(["N/A",] * 48)
-        # Now the first 16 values repeat once more + 'FC6'
-        self.cqs.extend(self.cqs[:16])
-        self.cqs.append("FC6")
-        # Now 77-80 which will repeat until 127
-        self.cqs.extend(self.cqs[-4:] * 12)
-
 class EmotivEPOCNotFoundException(Exception):
     pass
 
@@ -58,7 +44,20 @@ class EmotivEPOC(object):
         self.INTERFACE_DESC = "Emotiv RAW DATA"
         self.MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
 
-        self.cq = EmotivEPOCContactQuality()
+        # Define a contact quality ordering
+        # See:
+        #   github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
+        # For counter values between 0-15
+        self.cqOrder = ["F3", "FC5", "AF3", "F7", "T7",  "P7",  "O1",
+                        "O2", "P8",  "T8",  "F8", "AF4", "FC6", "F4",
+                        "F8", "AF4"]
+        # 16-63 is currently unknown
+        self.cqOrder.extend(["N/A",] * 48)
+        # Now the first 16 values repeat once more and ends with 'FC6'
+        self.cqOrder.extend(self.cqs[:16])
+        self.cqOrder.append("FC6")
+        # Finally pattern 77-80 repeats until 127
+        self.cqOrder.extend(self.cqs[-4:] * 12)
 
         ##################
         # ADC parameters #
