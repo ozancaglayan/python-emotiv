@@ -54,10 +54,10 @@ class EmotivEPOC(object):
         # 16-63 is currently unknown
         self.cqOrder.extend(["N/A",] * 48)
         # Now the first 16 values repeat once more and ends with 'FC6'
-        self.cqOrder.extend(self.cqs[:16])
+        self.cqOrder.extend(self.cqOrder[:16])
         self.cqOrder.append("FC6")
         # Finally pattern 77-80 repeats until 127
-        self.cqOrder.extend(self.cqs[-4:] * 12)
+        self.cqOrder.extend(self.cqOrder[-4:] * 12)
 
         ##################
         # ADC parameters #
@@ -206,7 +206,7 @@ class EmotivEPOC(object):
                 # Connection quality available with counters
                 c = bits[107:121]
 
-                electrode = self.cq.cqs[self.counter]
+                electrode = self.cqOrder[self.counter]
                 if electrode != "N/A":
                     self.quality[electrode] = c.uint / float(540)
 
