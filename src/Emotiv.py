@@ -31,9 +31,12 @@ import numpy as np
 from bitstring import BitArray
 
 from matplotlib import pyplot as plt
+from scipy import fftpack
 from Crypto.Cipher import AES
 
-from Enums import *
+# Enumerations for EEG channels (14 channels)
+CH_F3, CH_FC5, CH_AF3, CH_F7, CH_T7,  CH_P7, CH_O1,\
+CH_O2, CH_P8,  CH_T8,  CH_F8, CH_AF4, CH_FC6,CH_F4 = range(14)
 
 class EmotivEPOCNotFoundException(Exception):
     pass
@@ -52,12 +55,16 @@ class EmotivEPOC(object):
                         "O2", "P8",  "T8",  "F8", "AF4", "FC6", "F4",
                         "F8", "AF4"]
         # 16-63 is currently unknown
-        self.cqOrder.extend(["N/A",] * 48)
+        self.cqOrder.extend([None,] * 48)
         # Now the first 16 values repeat once more and ends with 'FC6'
         self.cqOrder.extend(self.cqOrder[:16])
         self.cqOrder.append("FC6")
         # Finally pattern 77-80 repeats until 127
         self.cqOrder.extend(self.cqOrder[-4:] * 12)
+
+        # Channel names
+        self.channelNames = ["F3", "FC5", "AF3", "F7", "T7", "P7", "O1",
+                             "O2", "P8",  "T8",  "F8", "AF4","FC6","F4"]
 
         ##################
         # ADC parameters #
@@ -72,7 +79,10 @@ class EmotivEPOC(object):
         # Each channel has 14 bits of data
         self.ch_bits = 14
 
-        self.ch_buffer = np.ndarray([self.ch_bits, self.sampling_rate])
+        self.ch_buffer = np.ndarray([self.ch_bits, self.sampling_rate],
+                buffer=np.zeros([self.ch_bits, self.sampling_rate]), dtype=int)
+        self.fft_buffer =  np.ndarray([self.ch_bits, self.sampling_rate],
+                buffer=np.zeros([self.ch_bits, self.sampling_rate]))
 
         # Battery levels
         # github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
@@ -95,6 +105,7 @@ class EmotivEPOC(object):
         self.endpoints = {}
 
         # Acquired data
+        self.packetLoss = 0
         self.counter = 0
         self.battery = 0
         self.gyroX   = 0
@@ -105,7 +116,7 @@ class EmotivEPOC(object):
                             "P8" : 0, "T8"  : 0, "F8"  : 0, "AF4": 0,
                             "FC6": 0, "F4"  : 0,
                        }
-        self.eegData = {
+        self.fftData = {
                             "F3" : 0, "FC5" : 0, "AF3" : 0, "F7" : 0,
                             "T7" : 0, "P7"  : 0, "O1"  : 0, "O2" : 0,
                             "P8" : 0, "T8"  : 0, "F8"  : 0, "AF4": 0,
@@ -185,8 +196,7 @@ class EmotivEPOC(object):
 
         self.cipher = AES.new(self.key)
 
-    def acquireData(self):
-        #ts_start = time.time()
+    def acquireData(self, dump=False):
         try:
             raw = self.endpoints[self.serialNumber].read(32, timeout=1000)
             bits = BitArray(bytes=self.cipher.decrypt(raw))
@@ -200,35 +210,68 @@ class EmotivEPOC(object):
             # Counter / Battery
             if bits[0]:
                 self.battery = self.battery_levels[bits[0:8].uint]
+
+                """
+                for i in range(14):
+                    self.fft_buffer[i] = fftpack.fft(self.ch_buffer[i])
+                """
             else:
                 self.counter = bits[0:8].uint
 
                 # Connection quality available with counters
-                c = bits[107:121]
+                try:
+                    self.quality[self.cqOrder[self.counter]] = bits[107:121].uint
+                except KeyError:
+                    pass
 
-                electrode = self.cqOrder[self.counter]
-                if electrode != "N/A":
-                    self.quality[electrode] = c.uint / float(540)
+                # Channels
+                self.ch_buffer[CH_F3, self.counter] = bits[8:22].uint
+                self.ch_buffer[CH_FC5,self.counter] = bits[22:36].uint
+                self.ch_buffer[CH_AF3,self.counter] = bits[36:50].uint
+                self.ch_buffer[CH_F7, self.counter] = bits[50:64].uint
+                self.ch_buffer[CH_T7, self.counter] = bits[64:78].uint
+                self.ch_buffer[CH_P7, self.counter] = bits[78:92].uint
+                self.ch_buffer[CH_O1, self.counter] = bits[92:106].uint
+                self.ch_buffer[CH_O2, self.counter] = bits[134:148].uint
+                self.ch_buffer[CH_P8, self.counter] = bits[148:162].uint
+                self.ch_buffer[CH_T8, self.counter] = bits[162:176].uint
+                self.ch_buffer[CH_F8, self.counter] = bits[176:190].uint
+                self.ch_buffer[CH_AF4,self.counter] = bits[190:204].uint
+                self.ch_buffer[CH_FC6,self.counter] = bits[204:218].uint
+                self.ch_buffer[CH_F4, self.counter] = bits[218:232].uint
 
-            # Channels
-            self.ch_buffer[CH_F3, self.counter] = bits[8:22].uint
-            self.ch_buffer[CH_FC5,self.counter] = bits[22:36].uint
-            self.ch_buffer[CH_AF3,self.counter] = bits[36:50].uint
-            self.ch_buffer[CH_F7, self.counter] = bits[50:64].uint
-            self.ch_buffer[CH_T7, self.counter] = bits[64:78].uint
-            self.ch_buffer[CH_P7, self.counter] = bits[78:92].uint
-            self.ch_buffer[CH_O1, self.counter] = bits[92:106].uint
-            self.ch_buffer[CH_O2, self.counter] = bits[134:148].uint
-            self.ch_buffer[CH_P8, self.counter] = bits[148:162].uint
-            self.ch_buffer[CH_T8, self.counter] = bits[162:176].uint
-            self.ch_buffer[CH_F8, self.counter] = bits[176:190].uint
-            self.ch_buffer[CH_AF4,self.counter] = bits[190:204].uint
-            self.ch_buffer[CH_FC6,self.counter] = bits[204:218].uint
-            self.ch_buffer[CH_F4, self.counter] = bits[218:232].uint
+                # Gyroscope
+                self.gyroX = bits[233:240].uint - 106
+                self.gyroY = bits[240:248].uint - 106
 
-            # Gyroscope
-            self.gyroX = bits[233:240].uint - 106
-            self.gyroY = bits[240:248].uint - 106
+            # Dump once for each second
+            if dump and self.counter == 127:
+                self.dumpData()
+
+    def getData(self, what):
+        self.acquireData()
+        return self.ch_buffer[self.channelNames.index(what), :]
+
+    def getFFTData(self, what):
+        d= self.fft_buffer[self.channelNames.index(what), :]
+        print(d)
+        return d
+
+    def dumpData(self):
+        # Clear screen
+        print("\x1b[2J\x1b[H")
+        header = "Emotiv Data Packet [%3d/128] [Loss: %3d] [Battery: %2d(%%)]" % (
+            self.counter, self.packetLoss, self.battery)
+        print("%s\n%s" % (header, '-'*len(header)))
+
+        print("%10s: %5d" % ("Gyro(x)", self.gyroX))
+        print("%10s: %5d" % ("Gyro(y)", self.gyroY))
+
+        for i,channel in enumerate(self.channelNames):
+            print("%10s: %5d %20s: %5d (%.2f)" % (channel,
+                                           self.ch_buffer[i, self.counter],
+                                           "Quality", self.quality[channel],
+                                           self.quality[channel]/540.))
 
     def calibrateGyro(self):
         """Gyroscope has a baseline value. We can subtract that
@@ -289,7 +332,7 @@ if __name__ == "__main__":
 
     try:
         while True:
-            emotiv.acquireData()
+            emotiv.acquireData(dump=True)
     except KeyboardInterrupt, ke:
         emotiv.disconnect()
         sys.exit(1)
