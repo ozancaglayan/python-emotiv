@@ -27,6 +27,13 @@ Installation
 Copy the relevant udev rule under /etc/udev/rules.d before plugging the EPOC
 dongle for being able to run this as a non-root user.
 
+Screenshot
+==========
+
+When you run Emotiv.py, it will update what it gets from your headset
+and output the data once in a second on your terminal:
+
+![Terminal screenshot](http://raw.github.com/ozancaglayan/EmotivBCI/master/doc/sc_console.png)
 
 Authors
 =======
