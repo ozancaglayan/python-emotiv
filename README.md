@@ -33,7 +33,7 @@ Screenshot
 When you run Emotiv.py, it will update what it gets from your headset
 and output the data once in a second on your terminal:
 
-![Terminal screenshot](http://raw.github.com/ozancaglayan/EmotivBCI/master/doc/sc_console.png)
+![Terminal screenshot](https://raw.github.com/ozancaglayan/EmotivBCI/master/doc/sc_console.png)
 
 Authors
 =======
