@@ -27,6 +27,12 @@ Installation
 Copy the relevant udev rule under /etc/udev/rules.d before plugging the EPOC
 dongle for being able to run this as a non-root user.
 
+Usage
+=====
+
+You do not need to put the headset or mount the dry electrodes in order to
+acquire gyroscope data.
+
 Screenshot
 ==========
 
