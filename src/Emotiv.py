@@ -23,6 +23,9 @@ import os
 import sys
 import time
 
+from multiprocessing import Pool, Queue, Process, JoinableQueue
+from multiprocessing.managers import BaseManager
+
 import usb.core
 import usb.util
 
@@ -37,6 +40,23 @@ from Crypto.Cipher import AES
 # Enumerations for EEG channels (14 channels)
 CH_F3, CH_FC5, CH_AF3, CH_F7, CH_T7,  CH_P7, CH_O1,\
 CH_O2, CH_P8,  CH_T8,  CH_F8, CH_AF4, CH_FC6,CH_F4 = range(14)
+
+def dataProcess(aes_key, input_queue, output_queue):
+    # Setup decryption cipher
+    cipher = AES.new(aes_key)
+    cold_start = True
+    while 1:
+        encrypted_packet = input_queue.get()
+        decrypted_packet = cipher.decrypt(encrypted_packet)
+        bits = BitArray(bytes=decrypted_packet)
+        # Skip until packet with seq number 0
+        if cold_start and bits[0:8].uint != 0:
+            pass
+        # Discard battery packets
+        elif not bits[0]:
+            cold_start = False
+            output_queue.put(bits)
+        input_queue.task_done()
 
 class EmotivEPOCNotFoundException(Exception):
     pass
@@ -116,12 +136,9 @@ class EmotivEPOC(object):
                             "P8" : 0, "T8"  : 0, "F8"  : 0, "AF4": 0,
                             "FC6": 0, "F4"  : 0,
                        }
-        self.fftData = {
-                            "F3" : 0, "FC5" : 0, "AF3" : 0, "F7" : 0,
-                            "T7" : 0, "P7"  : 0, "O1"  : 0, "O2" : 0,
-                            "P8" : 0, "T8"  : 0, "F8"  : 0, "AF4": 0,
-                            "FC6": 0, "F4"  : 0,
-                       }
+
+        self.input_queue = JoinableQueue()
+        self.output_queue = Queue()
 
     def _is_emotiv_epoc(self, device):
         """Custom match function for libusb."""
@@ -194,27 +211,47 @@ class EmotivEPOC(object):
                                 self.serialNumber[13], '\x00',
                                 self.serialNumber[12], '\x50'])
 
-        self.cipher = AES.new(self.key)
+        self.decryptionProcess = Process(target=dataProcess,
+                                         args=[self.key, self.input_queue,
+                                               self.output_queue])
+        self.decryptionProcess.daemon = True
+        self.decryptionProcess.start()
 
-    def acquireData(self, dump=False):
-        try:
-            raw = self.endpoints[self.serialNumber].read(32, timeout=1000)
-            bits = BitArray(bytes=self.cipher.decrypt(raw))
-        except usb.USBError as e:
-            if e.errno == 110:
-                print("Make sure that headset is turned on.")
-            else:
-                print(e)
+    def acquireData(self, duration, dump=False):
+        if self.output_queue.qsize() == duration * self.sampling_rate:
+            eeg_data = np.zeros((5, self.output_queue.qsize()))
+            print("Acquired %d seconds of data" % duration)
+            for i in xrange(self.output_queue.qsize()):
+                bits = self.output_queue.get_nowait()
+                eeg_data[0, i] = bits[92:106].uint   # O1
+                eeg_data[1, i] = bits[134:148].uint  # 02
+                eeg_data[2, i] = bits[78:92].uint    # P7
+                eeg_data[3, i] = bits[148:162].uint  # P8
+                eeg_data[4, i] = bits[0:8].uint
+                #eeg_data[0, i] = (bits[134:148].uint + bits[92:106].uint) / 2
 
+            np.save("eeg-%d-4channels.npy" % (duration), eeg_data)
+
+            raise KeyboardInterrupt
+
+            # Process them
+        else:
+            # Fetch new data
+            try:
+                raw = self.endpoints[self.serialNumber].read(32, timeout=1000)
+                self.input_queue.put(raw)
+            except usb.USBError as e:
+                if e.errno == 110:
+                    print("Make sure that headset is turned on.")
+                else:
+                    print(e)
+
+        """
         else:
             # Counter / Battery
             if bits[0]:
                 self.battery = self.battery_levels[bits[0:8].uint]
 
-                """
-                for i in range(14):
-                    self.fft_buffer[i] = fftpack.fft(self.ch_buffer[i])
-                """
             else:
                 self.counter = bits[0:8].uint
 
@@ -247,6 +284,7 @@ class EmotivEPOC(object):
             # Dump once for each second
             if dump and self.counter == 127:
                 self.dumpData()
+        """
 
     def getData(self, what):
         self.acquireData()
@@ -308,11 +346,11 @@ class EmotivEPOC(object):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) > 2:
-        # Pass a specific S/N
-        emotiv = EmotivEPOC(sys.argv[1])
-    else:
-        emotiv = EmotivEPOC()
+    duration = 10
+    if len(sys.argv) > 1:
+        duration = int(sys.argv[1])
+
+    emotiv = EmotivEPOC()
 
     print("Enumerating devices...")
     try:
@@ -332,7 +370,7 @@ if __name__ == "__main__":
 
     try:
         while True:
-            emotiv.acquireData(dump=True)
+            emotiv.acquireData(duration=duration)
     except KeyboardInterrupt, ke:
         emotiv.disconnect()
         sys.exit(1)
