@@ -31,32 +31,14 @@ import usb.util
 
 import numpy as np
 
-from bitstring import BitArray
-
 from matplotlib import pyplot as plt
 from scipy import fftpack
-from Crypto.Cipher import AES
+
+from decryptionProcess import decryptionProcess as decryptionThread
 
 # Enumerations for EEG channels (14 channels)
 CH_F3, CH_FC5, CH_AF3, CH_F7, CH_T7,  CH_P7, CH_O1,\
 CH_O2, CH_P8,  CH_T8,  CH_F8, CH_AF4, CH_FC6,CH_F4 = range(14)
-
-def dataProcess(aes_key, input_queue, output_queue):
-    # Setup decryption cipher
-    cipher = AES.new(aes_key)
-    cold_start = True
-    while 1:
-        encrypted_packet = input_queue.get()
-        decrypted_packet = cipher.decrypt(encrypted_packet)
-        bits = BitArray(bytes=decrypted_packet)
-        # Skip until packet with seq number 0
-        if cold_start and bits[0:8].uint != 0:
-            pass
-        # Discard battery packets
-        elif not bits[0]:
-            cold_start = False
-            output_queue.put(bits)
-        input_queue.task_done()
 
 class EmotivEPOCNotFoundException(Exception):
     pass
@@ -211,7 +193,7 @@ class EmotivEPOC(object):
                                 self.serialNumber[13], '\x00',
                                 self.serialNumber[12], '\x50'])
 
-        self.decryptionProcess = Process(target=dataProcess,
+        self.decryptionProcess = Process(target=decryptionThread,
                                          args=[self.key, self.input_queue,
                                                self.output_queue])
         self.decryptionProcess.daemon = True
