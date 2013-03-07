@@ -19,7 +19,7 @@ Dependencies
 * [python-bitstring](http://code.google.com/p/python-bitstring)
 * numpy
 * matplotlib
-* scipy (in the future)
+* scipy
 
 Installation
 ============
@@ -36,7 +36,7 @@ acquire gyroscope data.
 Screenshot
 ==========
 
-When you run Emotiv.py, it will update what it gets from your headset
+When you run datalogger.py, it will update what it gets from your headset
 and output the data once in a second on your terminal:
 
 ![Terminal screenshot](https://raw.github.com/ozancaglayan/EmotivBCI/master/doc/sc_console.png)
