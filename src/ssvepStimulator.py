@@ -34,7 +34,7 @@ class LedStimulus(object):
         self.pin = _pin
         self.desc = _desc
         self.current = _initial
-        self.interval = 1000.0 / (_freq * 2)
+        self.interval = 1.0 / (_freq * 2)
         self.lastTransition = 0.0
 
 def main():
