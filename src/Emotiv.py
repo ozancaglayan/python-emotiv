@@ -325,34 +325,3 @@ class EmotivEPOC(object):
 
             for interf in dev.get_active_configuration():
                 usb.util.release_interface(dev, interf.bInterfaceNumber)
-
-if __name__ == "__main__":
-
-    duration = 10
-    if len(sys.argv) > 1:
-        duration = int(sys.argv[1])
-
-    emotiv = EmotivEPOC()
-
-    print("Enumerating devices...")
-    try:
-        emotiv.enumerate()
-    except EmotivEPOCNotFoundException, e:
-        if emotiv.permissionProblem:
-            print("Please make sure that device permissions are handled.")
-        else:
-            print("Please make sure that device permissions are handled or"\
-                    " at least 1 Emotiv EPOC dongle is plugged.")
-        sys.exit(1)
-
-    for k,v in emotiv.devices.iteritems():
-        print("Found dongle with S/N: %s" % k)
-
-    emotiv.setupEncryption()
-
-    try:
-        while True:
-            emotiv.acquireData(duration=duration)
-    except KeyboardInterrupt, ke:
-        emotiv.disconnect()
-        sys.exit(1)
