@@ -221,10 +221,9 @@ class EmotivEPOC(object):
         self.decryptionProcess.daemon = True
         self.decryptionProcess.start()
 
-    def acquireData(self, duration, dump=False):
+    def acquireData(self, duration, channelMask):
         if self.output_queue.qsize() == duration * self.sampling_rate:
-            eeg_data = np.zeros((5, self.output_queue.qsize()))
-            print("Acquired %d seconds of data" % duration)
+            eeg_data = np.zeros((len(channelMask), self.output_queue.qsize()))
             for i in xrange(self.output_queue.qsize()):
                 bits = self.output_queue.get_nowait()
                 eeg_data[0, i] = bits[self.SL_O1].uint
@@ -233,11 +232,9 @@ class EmotivEPOC(object):
                 eeg_data[3, i] = bits[self.SL_P8].uint
                 eeg_data[4, i] = bits[self.SL_SEQ].uint
 
-            np.save("eeg-%d-4channels.npy" % (duration), eeg_data)
+            #np.save("eeg-%d-4channels.npy" % (duration), eeg_data)
+            return eeg_data
 
-            raise KeyboardInterrupt
-
-            # Process them
         else:
             # Fetch new data
             try:
