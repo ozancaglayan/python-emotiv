@@ -83,8 +83,6 @@ class EmotivEPOC(object):
 
         self.ch_buffer = np.ndarray([self.ch_bits, self.sampling_rate],
                 buffer=np.zeros([self.ch_bits, self.sampling_rate]), dtype=int)
-        self.fft_buffer =  np.ndarray([self.ch_bits, self.sampling_rate],
-                buffer=np.zeros([self.ch_bits, self.sampling_rate]))
 
         # Battery levels
         # github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
@@ -271,11 +269,6 @@ class EmotivEPOC(object):
     def getData(self, what):
         self.acquireData()
         return self.ch_buffer[self.channelNames.index(what), :]
-
-    def getFFTData(self, what):
-        d= self.fft_buffer[self.channelNames.index(what), :]
-        print(d)
-        return d
 
     def dumpData(self):
         # Clear screen
