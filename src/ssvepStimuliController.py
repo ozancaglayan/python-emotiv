@@ -53,6 +53,7 @@ def ssvepThread():
 
     signal.signal(signal.SIGUSR1, sigusr1Handler)
     signal.signal(signal.SIGTERM, sigtermHandler)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     stimuli = [
                LedStimulus(11, "Left Arm" , 0, 5),
@@ -85,9 +86,10 @@ if __name__ == "__main__":
     ssvepProcess.start()
 
     a = time.time()
-    for i in range(3):
-        if time.time() - a > 2:
-            a = time.time()
-            os.kill(ssvepProcess.pid, signal.SIGUSR1)
-
-    ssvepProcess.terminate()
+    try:
+        while 1:
+            if time.time() - a > 4:
+                a = time.time()
+                os.kill(ssvepProcess.pid, signal.SIGUSR1)
+    except KeyboardInterrupt, ke:
+        ssvepProcess.terminate()
