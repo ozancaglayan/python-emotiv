@@ -23,10 +23,10 @@ import time
 import signal
 
 import RPi.GPIO as GPIO
-from scipy import fftpack
 from multiprocessing import Process
 
-from Emotiv import *
+from Emotiv import EmotivEPOC, EmotivEPOCNotFoundException, \
+                   EmotivEPOCTurnedOffException
 
 isStimulationRunning = True
 
@@ -41,8 +41,8 @@ class LedStimulus(object):
 
 def ssvepThread():
     def sigusr1Handler(signum, frame):
-        global isRunning
-        isRunning = not isRunning
+        global isStimulationRunning
+        isStimulationRunning = not isStimulationRunning
 
     def sigtermHandler(signum, frame):
         GPIO.cleanup()
@@ -63,7 +63,7 @@ def ssvepThread():
         GPIO.setup(stimulus.pin, GPIO.OUT)
 
     while 1:
-        if isRunning:
+        if isStimulationRunning:
             for stimulus in stimuli:
                 if time.time() >= stimulus.lastTransition + stimulus.interval:
                     # Event elapsed, change state
@@ -95,7 +95,7 @@ if __name__ == "__main__":
                     " at least 1 Emotiv EPOC dongle is plugged.")
         sys.exit(1)
 
-    for k,v in emotiv.devices.iteritems():
+    for k, v in emotiv.devices.iteritems():
         print("Found dongle with S/N: %s" % k)
 
     emotiv.setupEncryption()
@@ -121,8 +121,3 @@ if __name__ == "__main__":
 
     emotiv.disconnect()
     ssvepProcess.terminate()
-
-if __name__ == "__main__":
-
-
-
