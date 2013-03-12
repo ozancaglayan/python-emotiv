@@ -25,16 +25,17 @@ from Crypto.Cipher import AES
 def decryptionProcess(aes_key, input_queue, output_queue):
     # Setup decryption cipher
     cipher = AES.new(aes_key)
-    cold_start = True
     while 1:
         encrypted_packet = input_queue.get()
         decrypted_packet = cipher.decrypt(encrypted_packet)
         bits = BitArray(bytes=decrypted_packet)
         # Skip until packet with seq number 0
-        if cold_start and bits[0:8].uint != 0:
+        # An empty queue means that we processed the previous
+        # buffer in the other thread. So we can wait until pkg#0
+        # for syncing.
+        if output_queue.empty() and bits[0:8].uint != 0:
             pass
         # Discard battery packets for now
         elif not bits[0]:
-            cold_start = False
             output_queue.put(bits)
         input_queue.task_done()
