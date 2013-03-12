@@ -79,8 +79,8 @@ class EmotivEPOC(object):
         # Each channel has 14 bits of data
         self.ch_bits = 14
 
-        self.ch_buffer = np.ndarray([self.ch_bits, self.sampling_rate],
-                buffer=np.zeros([self.ch_bits, self.sampling_rate]), dtype=int)
+        self.ch_buffer = np.ndarray([len(self.channels), self.sampling_rate],
+                buffer=np.zeros([len(self.channels), self.sampling_rate]), dtype=int)
 
         # Battery levels
         # github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
