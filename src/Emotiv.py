@@ -41,8 +41,8 @@ class EmotivEPOCNotFoundException(Exception):
 class EmotivEPOC(object):
     def __init__(self, serialNumber=None):
         # These seem to be the same for every device
-        self.INTERFACE_DESC = "Emotiv RAW DATA"
-        self.MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
+        self.__INTERFACE_DESC = "Emotiv RAW DATA"
+        self.__MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
 
         # Define a contact quality ordering
         # See:
@@ -121,7 +121,7 @@ class EmotivEPOC(object):
     def _is_emotiv_epoc(self, device):
         """Custom match function for libusb."""
         try:
-            manu = usb.util.get_string(device, len(self.MANUFACTURER_DESC),
+            manu = usb.util.get_string(device, len(self.__MANUFACTURER_DESC),
                                        device.iManufacturer)
         except usb.core.USBError, ue:
             # Skip failing devices as it happens on Raspberry Pi
@@ -131,12 +131,12 @@ class EmotivEPOC(object):
                 self.permissionProblem = True
                 pass
         else:
-            if manu == self.MANUFACTURER_DESC:
+            if manu == self.__MANUFACTURER_DESC:
                 # Found a dongle, check for interface class 3
                 for interf in device.get_active_configuration():
-                    ifStr = usb.util.get_string(device, len(self.INTERFACE_DESC),
+                    ifStr = usb.util.get_string(device, len(self.__INTERFACE_DESC),
                                                 interf.iInterface)
-                    if ifStr == self.INTERFACE_DESC:
+                    if ifStr == self.__INTERFACE_DESC:
                         return True
 
     def enumerate(self):
