@@ -255,7 +255,8 @@ class EmotivEPOC(object):
             matlabData = {"SEQ" : eeg_data[0]}
             for i,chName in enumerate(channelMask):
                 matlabData[chName] = eeg_data[i+1]
-            savemat("%s-%s.mat" % (savePrefix, "-".join(channelMask)), matlabData)
+            savemat("%s-%s.mat" % (savePrefix, "-".join(channelMask)),
+                    matlabData, oned_as='row')
 
         return eeg_data
 
