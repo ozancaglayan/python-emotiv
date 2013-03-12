@@ -35,10 +35,6 @@ from scipy import fftpack
 
 from decryptionProcess import decryptionProcess as decryptionThread
 
-# Enumerations for EEG channels (14 channels)
-CH_F3, CH_FC5, CH_AF3, CH_F7, CH_T7,  CH_P7, CH_O1,\
-CH_O2, CH_P8,  CH_T8,  CH_F8, CH_AF4, CH_FC6,CH_F4 = range(14)
-
 class EmotivEPOCNotFoundException(Exception):
     pass
 
@@ -64,8 +60,11 @@ class EmotivEPOC(object):
         self.cqOrder.extend(self.cqOrder[-4:] * 12)
 
         # Channel names
-        self.channelNames = ["F3", "FC5", "AF3", "F7", "T7", "P7", "O1",
-                             "O2", "P8",  "T8",  "F8", "AF4","FC6","F4"]
+        self.channels = ["F3", "FC5", "AF3", "F7", "T7", "P7", "O1",
+                         "O2", "P8",  "T8",  "F8", "AF4","FC6","F4"]
+
+        # Update __dict__ with convenience attributes for channels
+        self.__dict__.update(dict((v, k) for k,v in enumerate(self.channels)))
 
         ##################
         # ADC parameters #
@@ -241,20 +240,20 @@ class EmotivEPOC(object):
                     pass
 
                 # Channels
-                self.ch_buffer[CH_F3, self.counter] = bits[8:22].uint
-                self.ch_buffer[CH_FC5,self.counter] = bits[22:36].uint
-                self.ch_buffer[CH_AF3,self.counter] = bits[36:50].uint
-                self.ch_buffer[CH_F7, self.counter] = bits[50:64].uint
-                self.ch_buffer[CH_T7, self.counter] = bits[64:78].uint
-                self.ch_buffer[CH_P7, self.counter] = bits[78:92].uint
-                self.ch_buffer[CH_O1, self.counter] = bits[92:106].uint
-                self.ch_buffer[CH_O2, self.counter] = bits[134:148].uint
-                self.ch_buffer[CH_P8, self.counter] = bits[148:162].uint
-                self.ch_buffer[CH_T8, self.counter] = bits[162:176].uint
-                self.ch_buffer[CH_F8, self.counter] = bits[176:190].uint
-                self.ch_buffer[CH_AF4,self.counter] = bits[190:204].uint
-                self.ch_buffer[CH_FC6,self.counter] = bits[204:218].uint
-                self.ch_buffer[CH_F4, self.counter] = bits[218:232].uint
+                self.ch_buffer[self.F3, self.counter] = bits[8:22].uint
+                self.ch_buffer[self.FC5,self.counter] = bits[22:36].uint
+                self.ch_buffer[self.AF3,self.counter] = bits[36:50].uint
+                self.ch_buffer[self.F7, self.counter] = bits[50:64].uint
+                self.ch_buffer[self.T7, self.counter] = bits[64:78].uint
+                self.ch_buffer[self.P7, self.counter] = bits[78:92].uint
+                self.ch_buffer[self.O1, self.counter] = bits[92:106].uint
+                self.ch_buffer[self.O2, self.counter] = bits[134:148].uint
+                self.ch_buffer[self.P8, self.counter] = bits[148:162].uint
+                self.ch_buffer[self.T8, self.counter] = bits[162:176].uint
+                self.ch_buffer[self.F8, self.counter] = bits[176:190].uint
+                self.ch_buffer[self.AF4,self.counter] = bits[190:204].uint
+                self.ch_buffer[self.FC6,self.counter] = bits[204:218].uint
+                self.ch_buffer[self.F4, self.counter] = bits[218:232].uint
 
                 # Gyroscope
                 self.gyroX = bits[233:240].uint - 106
@@ -267,7 +266,7 @@ class EmotivEPOC(object):
 
     def getData(self, what):
         self.acquireData()
-        return self.ch_buffer[self.channelNames.index(what), :]
+        return self.ch_buffer[self.channels.index(what), :]
 
     def dumpData(self):
         # Clear screen
@@ -279,7 +278,7 @@ class EmotivEPOC(object):
         print("%10s: %5d" % ("Gyro(x)", self.gyroX))
         print("%10s: %5d" % ("Gyro(y)", self.gyroY))
 
-        for i,channel in enumerate(self.channelNames):
+        for i,channel in enumerate(self.channels):
             print("%10s: %5d %20s: %5d (%.2f)" % (channel,
                                            self.ch_buffer[i, self.counter],
                                            "Quality", self.quality[channel],
