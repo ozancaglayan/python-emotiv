@@ -67,6 +67,8 @@ class EmotivEPOC(object):
         self.__dict__.update(dict((v, k) for k,v in enumerate(self.channels)))
 
         # Store slices for bit manipulation for convenience
+        # This way we can get EEG data for a channel from a bitarray
+        # using bits[self.SL_O2].
         self.__dict__.update(dict(("SL_%s" % k, v) for k,v in
                                 zip(self.channels, (slice(8,22),
                                                     slice(22,36),
