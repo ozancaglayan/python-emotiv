@@ -39,6 +39,12 @@ from decryptionProcess import decryptionProcess as decryptionThread
 class EmotivEPOCNotFoundException(Exception):
     pass
 
+class EmotivEPOCTurnedOffException(Exception):
+    pass
+
+class EmotivEPOCException(Exception):
+    pass
+
 class EmotivEPOC(object):
     def __init__(self, serialNumber=None):
         # These seem to be the same for every device
@@ -221,34 +227,37 @@ class EmotivEPOC(object):
         self.decryptionProcess.start()
 
     def acquireData(self, duration, channelMask, savePrefix=None):
-        if self.output_queue.qsize() == duration * self.sampling_rate:
-            # +1 for sequence numbers
-            eeg_data = np.zeros((len(channelMask)+1, self.output_queue.qsize()))
-            for spl in xrange(self.output_queue.qsize()):
-                bits = self.output_queue.get_nowait()
-                eeg_data[0, spl] = bits[self.slices["SEQ#"]].uint
-                for i,chName in enumerate(channelMask):
-                    # chName's are strings like "O1", "O2", etc.
-                    eeg_data[i+1, spl] = bits[self.slices[chName]].uint
-
-            if savePrefix:
-                # Save as matlab data with channel annotations
-                matlabData = {"SEQ" : eeg_data[0]}
-                for i,chName in enumerate(channelMask):
-                    matlabData[ch] = eeg_data[i+1]
-                savemat("%s-%s.mat" % (savePrefix, "-".join(channelMask)), matlabData)
-            return eeg_data
-
-        else:
+        totalSamples = duration * self.sampling_rate
+        while self.output_queue.qsize() != totalSamples:
             # Fetch new data
             try:
                 raw = self.endpoints[self.serialNumber].read(32, timeout=1000)
                 self.input_queue.put(raw)
             except usb.USBError as e:
                 if e.errno == 110:
-                    print("Make sure that headset is turned on.")
+                    raise EmotivEPOCTurnedOffException("Make sure that headset is turned on")
                 else:
-                    print(e)
+                    raise EmotivEPOCException(e)
+
+        # Process and return the final data
+
+        # +1 for sequence numbers
+        eeg_data = np.zeros((len(channelMask)+1, self.output_queue.qsize()))
+        for spl in xrange(self.output_queue.qsize()):
+            bits = self.output_queue.get_nowait()
+            eeg_data[0, spl] = bits[self.slices["SEQ#"]].uint
+            for i,chName in enumerate(channelMask):
+                # chName's are strings like "O1", "O2", etc.
+                eeg_data[i+1, spl] = bits[self.slices[chName]].uint
+
+        if savePrefix:
+            # Save as matlab data with channel annotations
+            matlabData = {"SEQ" : eeg_data[0]}
+            for i,chName in enumerate(channelMask):
+                matlabData[chName] = eeg_data[i+1]
+            savemat("%s-%s.mat" % (savePrefix, "-".join(channelMask)), matlabData)
+
+        return eeg_data
 
     def getData(self, what):
         self.acquireData()
