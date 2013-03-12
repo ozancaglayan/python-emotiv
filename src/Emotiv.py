@@ -206,7 +206,6 @@ class EmotivEPOC(object):
                 eeg_data[2, i] = bits[78:92].uint    # P7
                 eeg_data[3, i] = bits[148:162].uint  # P8
                 eeg_data[4, i] = bits[0:8].uint
-                #eeg_data[0, i] = (bits[134:148].uint + bits[92:106].uint) / 2
 
             np.save("eeg-%d-4channels.npy" % (duration), eeg_data)
 
@@ -223,46 +222,6 @@ class EmotivEPOC(object):
                     print("Make sure that headset is turned on.")
                 else:
                     print(e)
-
-        """
-        else:
-            # Counter / Battery
-            if bits[0]:
-                self.battery = self.battery_levels[bits[0:8].uint]
-
-            else:
-                self.counter = bits[0:8].uint
-
-                # Connection quality available with counters
-                try:
-                    self.quality[self.cqOrder[self.counter]] = bits[107:121].uint
-                except KeyError:
-                    pass
-
-                # Channels
-                self.ch_buffer[self.F3, self.counter] = bits[8:22].uint
-                self.ch_buffer[self.FC5,self.counter] = bits[22:36].uint
-                self.ch_buffer[self.AF3,self.counter] = bits[36:50].uint
-                self.ch_buffer[self.F7, self.counter] = bits[50:64].uint
-                self.ch_buffer[self.T7, self.counter] = bits[64:78].uint
-                self.ch_buffer[self.P7, self.counter] = bits[78:92].uint
-                self.ch_buffer[self.O1, self.counter] = bits[92:106].uint
-                self.ch_buffer[self.O2, self.counter] = bits[134:148].uint
-                self.ch_buffer[self.P8, self.counter] = bits[148:162].uint
-                self.ch_buffer[self.T8, self.counter] = bits[162:176].uint
-                self.ch_buffer[self.F8, self.counter] = bits[176:190].uint
-                self.ch_buffer[self.AF4,self.counter] = bits[190:204].uint
-                self.ch_buffer[self.FC6,self.counter] = bits[204:218].uint
-                self.ch_buffer[self.F4, self.counter] = bits[218:232].uint
-
-                # Gyroscope
-                self.gyroX = bits[233:240].uint - 106
-                self.gyroY = bits[240:248].uint - 106
-
-            # Dump once for each second
-            if dump and self.counter == 127:
-                self.dumpData()
-        """
 
     def getData(self, what):
         self.acquireData()
