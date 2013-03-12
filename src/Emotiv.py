@@ -32,6 +32,7 @@ import usb.util
 import numpy as np
 
 from scipy import fftpack
+from scipy.io import savemat
 
 from decryptionProcess import decryptionProcess as decryptionThread
 
@@ -219,7 +220,7 @@ class EmotivEPOC(object):
         self.decryptionProcess.daemon = True
         self.decryptionProcess.start()
 
-    def acquireData(self, duration, channelMask):
+    def acquireData(self, duration, channelMask, savePrefix=None):
         if self.output_queue.qsize() == duration * self.sampling_rate:
             # +1 for sequence numbers
             eeg_data = np.zeros((len(channelMask)+1, self.output_queue.qsize()))
@@ -230,7 +231,12 @@ class EmotivEPOC(object):
                     # chName's are strings like "O1", "O2", etc.
                     eeg_data[i+1, spl] = bits[self.slices[chName]].uint
 
-            #np.save("eeg-%d-4channels.npy" % (duration), eeg_data)
+            if savePrefix:
+                # Save as matlab data with channel annotations
+                matlabData = {"SEQ" : eeg_data[0]}
+                for i,chName in enumerate(channelMask):
+                    matlabData[ch] = eeg_data[i+1]
+                savemat("%s-%s.mat" % (savePrefix, "-".join(channelMask)), matlabData)
             return eeg_data
 
         else:
