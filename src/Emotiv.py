@@ -68,8 +68,8 @@ class EmotivEPOC(object):
 
         # Store slices for bit manipulation for convenience
         # This way we can get EEG data for a channel from a bitarray
-        # using bits[self.SL_O2].
-        self.__dict__.update(dict(("SL_%s" % k, v) for k,v in
+        # using bits[self.__slices["O3"]].
+        self.slices = dict((k, v) for k,v in
                                 zip(self.channels, (slice(8,22),
                                                     slice(22,36),
                                                     slice(36,50),
@@ -83,14 +83,12 @@ class EmotivEPOC(object):
                                                     slice(176,190),
                                                     slice(190,204),
                                                     slice(204,218),
-                                                    slice(218,232)))))
+                                                    slice(218,232))))
 
-        # Gyroscope slices
-        self.SL_GYROX = slice(233,240)
-        self.SL_GYROY = slice(240,248)
-
-        # Sequence number slice
-        self.SL_SEQ = slice(0,8)
+        # Gyroscope and sequence number slices
+        self.slices["GYROX"] = slice(233,240)
+        self.slices["GYROX"] = slice(240,248)
+        self.slices["SEQ#"] = slice(0,8)
 
         ##################
         # ADC parameters #
@@ -223,14 +221,14 @@ class EmotivEPOC(object):
 
     def acquireData(self, duration, channelMask):
         if self.output_queue.qsize() == duration * self.sampling_rate:
-            eeg_data = np.zeros((len(channelMask), self.output_queue.qsize()))
-            for i in xrange(self.output_queue.qsize()):
+            # +1 for sequence numbers
+            eeg_data = np.zeros((len(channelMask)+1, self.output_queue.qsize()))
+            for spl in xrange(self.output_queue.qsize()):
                 bits = self.output_queue.get_nowait()
-                eeg_data[0, i] = bits[self.SL_O1].uint
-                eeg_data[1, i] = bits[self.SL_O2].uint
-                eeg_data[2, i] = bits[self.SL_P7].uint
-                eeg_data[3, i] = bits[self.SL_P8].uint
-                eeg_data[4, i] = bits[self.SL_SEQ].uint
+                eeg_data[0, spl] = bits[self.slices["SEQ#"]].uint
+                for i,chName in enumerate(channelMask):
+                    # chName's are strings like "O1", "O2", etc.
+                    eeg_data[i+1, spl] = bits[self.slices[chName]].uint
 
             #np.save("eeg-%d-4channels.npy" % (duration), eeg_data)
             return eeg_data
