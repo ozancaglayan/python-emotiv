@@ -31,7 +31,6 @@ import usb.util
 
 import numpy as np
 
-from matplotlib import pyplot as plt
 from scipy import fftpack
 
 from decryptionProcess import decryptionProcess as decryptionThread
