@@ -20,18 +20,67 @@
 import os
 import sys
 import time
+import signal
 
-import numpy as np
-
+import RPi.GPIO as GPIO
 from scipy import fftpack
-
-# Enumerations for EEG channels (14 channels)
-CH_F3, CH_FC5, CH_AF3, CH_F7, CH_T7,  CH_P7, CH_O1,\
-CH_O2, CH_P8,  CH_T8,  CH_F8, CH_AF4, CH_FC6,CH_F4 = range(14)
+from multiprocessing import Process
 
 from Emotiv import *
 
+isStimulationRunning = True
+
+class LedStimulus(object):
+    def __init__(self, _pin, _desc, _initial, _freq):
+        self.pin = _pin
+        self.desc = _desc
+        self.current = _initial
+        self.initial = _initial
+        self.interval = 1.0 / (_freq * 2)
+        self.lastTransition = 0.0
+
+def ssvepThread():
+    def sigusr1Handler(signum, frame):
+        global isRunning
+        isRunning = not isRunning
+
+    def sigtermHandler(signum, frame):
+        GPIO.cleanup()
+        sys.exit(0)
+
+    signal.signal(signal.SIGUSR1, sigusr1Handler)
+    signal.signal(signal.SIGTERM, sigtermHandler)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    stimuli = [
+               LedStimulus(11, "Left Arm" , 0, 5),
+               LedStimulus(12, "Right Arm", 0, 7),
+              ]
+
+    # Setup pins
+    GPIO.setmode(GPIO.BOARD)
+    for stimulus in stimuli:
+        GPIO.setup(stimulus.pin, GPIO.OUT)
+
+    while 1:
+        if isRunning:
+            for stimulus in stimuli:
+                if time.time() >= stimulus.lastTransition + stimulus.interval:
+                    # Event elapsed, change state
+                    stimulus.current = (stimulus.current + 1) % 2
+                    stimulus.lastTransition = time.time()
+                    GPIO.output(stimulus.pin, stimulus.current)
+        else:
+            # Revert LEDs back to the initial OFF status
+            for stimulus in stimuli:
+                GPIO.output(stimulus.pin, GPIO.LOW)
+                stimulus.lastTransition = 0.0
+                stimulus.current = stimulus.initial
+
 if __name__ == "__main__":
+
+    ssvepProcess = Process(target=ssvepThread)
+    ssvepProcess.daemon = True
 
     emotiv = EmotivEPOC()
 
@@ -51,9 +100,29 @@ if __name__ == "__main__":
 
     emotiv.setupEncryption()
 
-    try:
-        while True:
-            emotiv.acquireData(duration=duration)
-    except KeyboardInterrupt, ke:
-        emotiv.disconnect()
-        sys.exit(1)
+    while True:
+        try:
+            # First record a 4 second of baseline EEG
+            eeg = emotiv.acquireData(duration=4, channelMask=["O1", "O2"],
+                                     savePrefix="ssvep_baseline")
+            # If we're here, baseline is recorded successfully
+            # start stimulation and then call EEG acquisition immediately
+            ssvepProcess.start()
+            eeg = emotiv.acquireData(duration=4, channelMask=["O1", "O2"],
+                                     savePrefix="ssvep_stimulation")
+        except EmotivEPOCTurnedOffException, e:
+            print e
+        except KeyboardInterrupt, ke:
+            break
+        else:
+            os.kill(ssvepProcess.pid, signal.SIGUSR1)
+            print "OK!"
+            break
+
+    emotiv.disconnect()
+    ssvepProcess.terminate()
+
+if __name__ == "__main__":
+
+
+
