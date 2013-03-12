@@ -66,6 +66,30 @@ class EmotivEPOC(object):
         # Update __dict__ with convenience attributes for channels
         self.__dict__.update(dict((v, k) for k,v in enumerate(self.channels)))
 
+        # Store slices for bit manipulation for convenience
+        self.__dict__.update(dict(("SL_%s" % k, v) for k,v in
+                                zip(self.channels, (slice(8,22),
+                                                    slice(22,36),
+                                                    slice(36,50),
+                                                    slice(50,64),
+                                                    slice(64,78),
+                                                    slice(78,92),
+                                                    slice(92,106),
+                                                    slice(134,148),
+                                                    slice(148,162),
+                                                    slice(162,176),
+                                                    slice(176,190),
+                                                    slice(190,204),
+                                                    slice(204,218),
+                                                    slice(218,232)))))
+
+        # Gyroscope slices
+        self.SL_GYROX = slice(233,240)
+        self.SL_GYROY = slice(240,248)
+
+        # Sequence number slice
+        self.SL_SEQ = slice(0,8)
+
         ##################
         # ADC parameters #
         # ################
@@ -201,11 +225,11 @@ class EmotivEPOC(object):
             print("Acquired %d seconds of data" % duration)
             for i in xrange(self.output_queue.qsize()):
                 bits = self.output_queue.get_nowait()
-                eeg_data[0, i] = bits[92:106].uint   # O1
-                eeg_data[1, i] = bits[134:148].uint  # 02
-                eeg_data[2, i] = bits[78:92].uint    # P7
-                eeg_data[3, i] = bits[148:162].uint  # P8
-                eeg_data[4, i] = bits[0:8].uint
+                eeg_data[0, i] = bits[self.SL_O1].uint
+                eeg_data[1, i] = bits[self.SL_O2].uint
+                eeg_data[2, i] = bits[self.SL_P7].uint
+                eeg_data[3, i] = bits[self.SL_P8].uint
+                eeg_data[4, i] = bits[self.SL_SEQ].uint
 
             np.save("eeg-%d-4channels.npy" % (duration), eeg_data)
 
