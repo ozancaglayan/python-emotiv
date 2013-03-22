@@ -129,9 +129,9 @@ class EmotivEPOC(object):
         # One can want to specify the dongle with its serial
         self.serialNumber = serialNumber
 
-        # Serial number indexed device map
-        self.devices = {}
-        self.endpoints = {}
+        # libusb device and endpoint
+        self.device = None
+        self.endpoint = None
 
         # Acquired data
         self.packetLoss = 0
@@ -178,6 +178,11 @@ class EmotivEPOC(object):
 
         for dev in devs:
             sn = usb.util.get_string(dev, 32, dev.iSerialNumber)
+            if self.serialNumber and self.serialNumber != sn:
+                # If a special S/N is given, look for it.
+                continue
+
+            self.serialNumber = sn
             cfg = dev.get_active_configuration()
 
             for interf in dev.get_active_configuration():
@@ -187,13 +192,11 @@ class EmotivEPOC(object):
                     usb.util.claim_interface(dev, interf.bInterfaceNumber)
 
             # 2nd interface is the one we need
-            self.endpoints[sn] = usb.util.find_descriptor(interf,
-                                 bEndpointAddress=usb.ENDPOINT_IN|2)
+            self.device = dev
+            self.endpoint = usb.util.find_descriptor(interf,
+                                bEndpointAddress=usb.ENDPOINT_IN|2)
 
-            self.devices[sn] = dev
-            self.serialNumber = sn
-
-            # FIXME: Default to the first device for now
+            # Return the first Emotiv headset by default
             break
 
     def setupEncryption(self, research=True):
@@ -231,7 +234,7 @@ class EmotivEPOC(object):
         while self.output_queue.qsize() != totalSamples:
             # Fetch new data
             try:
-                raw = self.endpoints[self.serialNumber].read(32, timeout=1000)
+                raw = self.endpoint.read(32, timeout=1000)
                 self.input_queue.put(raw)
             except usb.USBError as e:
                 if e.errno == 110:
@@ -305,10 +308,9 @@ class EmotivEPOC(object):
         return self.battery
 
     def disconnect(self):
-        """Release the claimed interfaces."""
+        """Release the claimed interface."""
 
-        for dev in self.devices.values():
-            cfg = dev.get_active_configuration()
+        cfg = self.device.get_active_configuration()
 
-            for interf in dev.get_active_configuration():
-                usb.util.release_interface(dev, interf.bInterfaceNumber)
+        for interf in dev.get_active_configuration():
+            usb.util.release_interface(self.device, interf.bInterfaceNumber)
