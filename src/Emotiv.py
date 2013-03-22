@@ -46,10 +46,13 @@ class EmotivEPOCException(Exception):
     pass
 
 class EmotivEPOC(object):
-    def __init__(self, serialNumber=None):
+    def __init__(self, method, serialNumber=None):
         # These seem to be the same for every device
         self.__INTERFACE_DESC = "Emotiv RAW DATA"
         self.__MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
+
+        # Access method can be 'hidraw' or 'libusb'
+        self.method = method
 
         # Define a contact quality ordering
         # See:
@@ -182,19 +185,27 @@ class EmotivEPOC(object):
                 # If a special S/N is given, look for it.
                 continue
 
+            # Record some attributes
             self.serialNumber = sn
-            cfg = dev.get_active_configuration()
+            self.idVendor = "%X" % dev.idVendor
+            self.idProduct = "%X" % dev.idProduct
 
-            for interf in dev.get_active_configuration():
-                if dev.is_kernel_driver_active(interf.bInterfaceNumber):
-                    # Detach kernel drivers and claim through libusb
-                    dev.detach_kernel_driver(interf.bInterfaceNumber)
-                    usb.util.claim_interface(dev, interf.bInterfaceNumber)
+            if self.method == "libusb":
+                for interf in dev.get_active_configuration():
+                    if dev.is_kernel_driver_active(interf.bInterfaceNumber):
+                        # Detach kernel drivers and claim through libusb
+                        dev.detach_kernel_driver(interf.bInterfaceNumber)
+                        usb.util.claim_interface(dev, interf.bInterfaceNumber)
 
-            # 2nd interface is the one we need
-            self.device = dev
-            self.endpoint = usb.util.find_descriptor(interf,
-                                bEndpointAddress=usb.ENDPOINT_IN|2)
+                # 2nd interface is the one we need
+                self.device = dev
+                self.endpoint = usb.util.find_descriptor(interf,
+                                    bEndpointAddress=usb.ENDPOINT_IN|2)
+            elif self.method == "hidraw":
+                if os.path.exists("/dev/emotiv"):
+                    self.endpoint = open("/dev/emotiv")
+                else:
+                    raise EmotivEPOCNotFoundException("/dev/emotiv doesn't exist.")
 
             # Return the first Emotiv headset by default
             break
@@ -225,7 +236,7 @@ class EmotivEPOC(object):
 
         self.decryptionProcess = Process(target=decryptionThread,
                                          args=[self.key, self.input_queue,
-                                               self.output_queue])
+                                               self.output_queue, sync=False])
         self.decryptionProcess.daemon = True
         self.decryptionProcess.start()
 
@@ -234,7 +245,7 @@ class EmotivEPOC(object):
         while self.output_queue.qsize() != totalSamples:
             # Fetch new data
             try:
-                raw = self.endpoint.read(32, timeout=1000)
+                raw = self.endpoint.read(32)
                 self.input_queue.put(raw)
             except usb.USBError as e:
                 if e.errno == 110:
@@ -310,7 +321,8 @@ class EmotivEPOC(object):
     def disconnect(self):
         """Release the claimed interface."""
 
-        cfg = self.device.get_active_configuration()
-
-        for interf in dev.get_active_configuration():
-            usb.util.release_interface(self.device, interf.bInterfaceNumber)
+        if self.method == "libusb":
+            for interf in dev.get_active_configuration():
+                usb.util.release_interface(self.device, interf.bInterfaceNumber)
+        elif self.method == "hidraw":
+            os.close(self.endpoint)
