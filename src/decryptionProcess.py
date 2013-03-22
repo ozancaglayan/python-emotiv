@@ -26,8 +26,7 @@ def decryptionProcess(aes_key, input_queue, output_queue, sync=False):
     # Setup decryption cipher
     cipher = AES.new(aes_key)
     while 1:
-        encrypted_packet = input_queue.get()
-        decrypted_packet = cipher.decrypt(encrypted_packet)
+        decrypted_packet = cipher.decrypt(input_queue.get())
         bits = BitArray(bytes=decrypted_packet)
         if sync and output_queue.empty() and bits[0:8].uint != 0:
             # Skip until packet with seq number 0
