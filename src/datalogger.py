@@ -30,7 +30,6 @@ import numpy as np
 
 from bitstring import BitArray
 
-from matplotlib import pyplot as plt
 from scipy import fftpack
 from Crypto.Cipher import AES
 
