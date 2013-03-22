@@ -38,4 +38,4 @@ def decryptionProcess(aes_key, input_queue, output_queue):
         # Discard battery packets for now
         elif not bits[0]:
             output_queue.put(bits)
-        input_queue.task_done()
+            output_queue.task_done()
