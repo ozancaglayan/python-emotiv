@@ -322,4 +322,8 @@ if __name__ == "__main__":
 
     eeg_data = emo.acquireData(1, ["O1", "O2"])
 
-    print(eeg_data[0,:])
+    cnt = 0
+    for i in xrange(eeg_data[0,:].size - 1):
+        cnt += ((int(eeg_data[0,i]) + 1) % 128) - int(eeg_data[0,i+1])
+
+    print("Packets dropped: %d" % cnt)
