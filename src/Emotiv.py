@@ -23,8 +23,7 @@ import os
 import sys
 import time
 
-from multiprocessing import Pool, Queue, Process, JoinableQueue
-from multiprocessing.managers import BaseManager
+from multiprocessing import Queue, Process, JoinableQueue
 
 import usb.core
 import usb.util
@@ -150,7 +149,7 @@ class EmotivEPOC(object):
                        }
 
         self.input_queue = JoinableQueue()
-        self.output_queue = Queue()
+        self.output_queue = JoinableQueue()
 
     def _is_emotiv_epoc(self, device):
         """Custom match function for libusb."""
@@ -210,6 +209,9 @@ class EmotivEPOC(object):
             # Return the first Emotiv headset by default
             break
 
+        self.setupEncryption()
+        self.endpoint.read(32)
+
     def setupEncryption(self, research=True):
         """Generate the encryption key and setup Crypto module.
         The key is based on the serial number of the device and the
@@ -236,7 +238,7 @@ class EmotivEPOC(object):
 
         self.decryptionProcess = Process(target=decryptionThread,
                                          args=[self.key, self.input_queue,
-                                               self.output_queue, sync=False])
+                                               self.output_queue, False])
         self.decryptionProcess.daemon = True
         self.decryptionProcess.start()
 
@@ -245,8 +247,7 @@ class EmotivEPOC(object):
         while self.output_queue.qsize() != totalSamples:
             # Fetch new data
             try:
-                raw = self.endpoint.read(32)
-                self.input_queue.put(raw)
+                self.input_queue.put(self.endpoint.read(32))
             except usb.USBError as e:
                 if e.errno == 110:
                     raise EmotivEPOCTurnedOffException("Make sure that headset is turned on")
@@ -254,11 +255,12 @@ class EmotivEPOC(object):
                     raise EmotivEPOCException(e)
 
         # Process and return the final data
+        self.output_queue.join()
 
         # +1 for sequence numbers
         eeg_data = np.zeros((len(channelMask)+1, self.output_queue.qsize()))
         for spl in xrange(self.output_queue.qsize()):
-            bits = self.output_queue.get_nowait()
+            bits = self.output_queue.get()
             eeg_data[0, spl] = bits[self.slices["SEQ#"]].uint
             for i,chName in enumerate(channelMask):
                 # chName's are strings like "O1", "O2", etc.
@@ -294,19 +296,6 @@ class EmotivEPOC(object):
                                            "Quality", self.quality[channel],
                                            self.quality[channel]/540.))
 
-    def calibrateGyro(self):
-        """Gyroscope has a baseline value. We can subtract that
-        from the acquired values to maintain the baseline at (0,0)"""
-        pass
-
-    def getGyroX(self):
-        self.acquireData()
-        yield self.gyroX
-
-    def getGyroY(self):
-        self.acquireData()
-        yield self.gyroY
-
     def getContactQuality(self, electrode):
         "Return contact quality for the specified electrode."""
         try:
@@ -320,9 +309,17 @@ class EmotivEPOC(object):
 
     def disconnect(self):
         """Release the claimed interface."""
-
         if self.method == "libusb":
             for interf in dev.get_active_configuration():
                 usb.util.release_interface(self.device, interf.bInterfaceNumber)
         elif self.method == "hidraw":
             os.close(self.endpoint)
+
+if __name__ == "__main__":
+
+    emo = EmotivEPOC(method="hidraw")
+    emo.enumerate()
+
+    eeg_data = emo.acquireData(1, ["O1", "O2"])
+
+    print(eeg_data[0,:])
