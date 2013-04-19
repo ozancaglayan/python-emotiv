@@ -56,7 +56,7 @@ class EPOCNotPluggedError(EPOCError):
 
 
 
-class EmotivEPOC(object):
+class EPOC(object):
     def __init__(self, method, serialNumber=None):
         # These seem to be the same for every device
         self.__INTERFACE_DESC = "Emotiv RAW DATA"
@@ -166,7 +166,7 @@ class EmotivEPOC(object):
         # Enumerate the bus to find EPOC devices
         self.enumerate()
 
-    def _is_emotiv_epoc(self, device):
+    def _is_epoc(self, device):
         """Custom match function for libusb."""
         try:
             manu = usb.util.get_string(device, len(self.__MANUFACTURER_DESC),
@@ -188,7 +188,7 @@ class EmotivEPOC(object):
                         return True
 
     def enumerate(self):
-        devs = usb.core.find(find_all=True, custom_match=self._is_emotiv_epoc)
+        devs = usb.core.find(find_all=True, custom_match=self._is_epoc)
 
         if not devs:
             raise EPOCNotPluggedError("Emotiv EPOC not found.")
@@ -325,9 +325,9 @@ class EmotivEPOC(object):
 
 if __name__ == "__main__":
 
-    emo = EmotivEPOC(method="hidraw")
+    epoc = EPOC(method="hidraw")
 
-    eeg_data = emo.acquireData(1, ["O1", "O2"])
+    eeg_data = epoc.acquireData(1, ["O1", "O2"])
 
     cnt = 0
     for i in xrange(eeg_data[0,:].size - 1):
