@@ -1,7 +1,7 @@
 Emotiv EPOC Python Interface
 ============================
 
-This is a BCI project using the Emotiv EPOC neuro headset.
+python-emotiv is an open-source library to acquire data from Emotiv EPOC headset.
 Although Emotiv recently provided 32-bit SDK for Linux, we have chosen
 to use the reverse-engineered protocol as the code will be finally deployed
 on a raspberry-pi ARM box.
@@ -36,10 +36,10 @@ acquire gyroscope data.
 Screenshot
 ==========
 
-When you run datalogger.py, it will update what it gets from your headset
+When you run utils/datalogger.py, it will update what it gets from your headset
 and output the data once in a second on your terminal:
 
-![Terminal screenshot](https://raw.github.com/ozancaglayan/EmotivBCI/master/doc/sc_console.png)
+![Terminal screenshot](https://raw.github.com/ozancaglayan/python-emotiv/master/doc/sc_console.png)
 
 Authors
 =======
