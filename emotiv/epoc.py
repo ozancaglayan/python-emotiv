@@ -61,6 +61,12 @@ class EPOCNotPluggedError(EPOCError):
     pass
 
 
+class EPOCPermissionError(EPOCError):
+    """Exception raised when EPOC dongle cannot be opened for I/O."""
+    pass
+
+
+
 class EPOC(object):
     """Class for accessing Emotiv EPOC headset devices."""
     def __init__(self, method, serial_number=None):
@@ -182,7 +188,7 @@ class EPOC(object):
             if usb_exception.errno == 32:
                 return False
             elif usb_exception.errno == 13:
-                self.permissionProblem = True
+                raise EPOCPermissionError("Problem with device permissions.")
         else:
             if manu == self.__manufacturer_desc:
                 # Found a dongle, check for interface class 3
