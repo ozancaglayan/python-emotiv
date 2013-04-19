@@ -163,6 +163,9 @@ class EmotivEPOC(object):
         self.input_queue = JoinableQueue()
         self.output_queue = JoinableQueue()
 
+        # Enumerate the bus to find EPOC devices
+        self.enumerate()
+
     def _is_emotiv_epoc(self, device):
         """Custom match function for libusb."""
         try:
@@ -323,7 +326,6 @@ class EmotivEPOC(object):
 if __name__ == "__main__":
 
     emo = EmotivEPOC(method="hidraw")
-    emo.enumerate()
 
     eeg_data = emo.acquireData(1, ["O1", "O2"])
 
