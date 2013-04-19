@@ -43,7 +43,7 @@ class EPOCTurnedOffError(EPOCError):
     pass
 
 class EPOCDeviceNodeNotFoundError(EPOCError):
-    """Exception raised when /dev/emotiv is missing."""
+    """Exception raised when /dev/emotiv_epoc is missing."""
     pass
 
 class EPOCUSBError(EPOCError):
@@ -216,10 +216,10 @@ class EPOC(object):
                 self.endpoint = usb.util.find_descriptor(interf,
                                     bEndpointAddress=usb.ENDPOINT_IN|2)
             elif self.method == "hidraw":
-                if os.path.exists("/dev/emotiv"):
-                    self.endpoint = open("/dev/emotiv")
+                if os.path.exists("/dev/emotiv_epoc"):
+                    self.endpoint = open("/dev/emotiv_epoc")
                 else:
-                    raise EPOCDeviceNodeNotFoundError("/dev/emotiv doesn't exist.")
+                    raise EPOCDeviceNodeNotFoundError("/dev/emotiv_epoc doesn't exist.")
 
             # Return the first Emotiv headset by default
             break
