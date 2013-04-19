@@ -33,13 +33,24 @@ from scipy.io import savemat
 
 from decryptionProcess import decryptionProcess as decryptionThread
 
-class EmotivEPOCNotFoundException(Exception):
+class EPOCError(Exception):
+    """Base class for exceptions in this module."""
     pass
 
-class EmotivEPOCTurnedOffException(Exception):
+class EPOCTurnedOffError(EPOCError):
+    """Exception raised when Emotiv EPOC is not turned on."""
     pass
 
-class EmotivEPOCException(Exception):
+class EPOCDeviceNodeNotFoundError(EPOCError):
+    """Exception raised when /dev/emotiv is missing."""
+    pass
+
+class EPOCUSBError(EPOCError):
+    """Exception raised when error occurs during I/O operations."""
+    pass
+
+class EPOCNotPluggedError(EPOCError):
+    """Exception raised when EPOC dongle cannot be detected."""
     pass
 
 class EmotivEPOC(object):
@@ -174,7 +185,7 @@ class EmotivEPOC(object):
         devs = usb.core.find(find_all=True, custom_match=self._is_emotiv_epoc)
 
         if not devs:
-            raise EmotivEPOCNotFoundException("No plugged Emotiv EPOC")
+            raise EPOCNotPluggedError("Emotiv EPOC not found.")
 
         for dev in devs:
             sn = usb.util.get_string(dev, 32, dev.iSerialNumber)
@@ -202,7 +213,7 @@ class EmotivEPOC(object):
                 if os.path.exists("/dev/emotiv"):
                     self.endpoint = open("/dev/emotiv")
                 else:
-                    raise EmotivEPOCNotFoundException("/dev/emotiv doesn't exist.")
+                    raise EPOCDeviceNodeNotFoundError("/dev/emotiv doesn't exist.")
 
             # Return the first Emotiv headset by default
             break
@@ -248,9 +259,10 @@ class EmotivEPOC(object):
                 self.input_queue.put(self.endpoint.read(32))
             except usb.USBError as e:
                 if e.errno == 110:
-                    raise EmotivEPOCTurnedOffException("Make sure that headset is turned on")
+                    raise EPOCTurnedOffError("Make sure that headset is turned on")
                 else:
-                    raise EmotivEPOCException(e)
+                    raise EPOCUSBError("USB I/O error with errno = %d" %
+                            e.errno)
 
         # Process and return the final data
         self.output_queue.join()
