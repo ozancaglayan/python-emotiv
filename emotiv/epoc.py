@@ -66,14 +66,77 @@ class EPOCPermissionError(EPOCError):
     pass
 
 
-
 class EPOC(object):
     """Class for accessing Emotiv EPOC headset devices."""
+
+    # Device descriptions for USB
+    INTERFACE_DESC = "Emotiv RAW DATA"
+    MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
+
+    # Channel names
+    channels = ["F3", "FC5", "AF3", "F7", "T7", "P7", "O1",
+                "O2", "P8",  "T8",  "F8", "AF4", "FC6", "F4"]
+
+    # Sampling rate: 128Hz (Internal: 2048Hz)
+    sampling_rate = 128
+
+    # Battery levels
+    # github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
+    battery_levels = {247: 99, 246: 97, 245: 93, 244: 89, 243: 85,
+                      242: 82, 241: 77, 240: 72, 239: 66, 238: 62,
+                      237: 55, 236: 46, 235: 32, 234: 20, 233: 12,
+                      232: 6, 231: 4, 230: 3, 229: 2, 228: 1,
+                      227: 1, 226: 1,
+                      }
+    # 100% for bit values between 248-255
+    battery_levels.update(dict([(k, 100) for k in range(248, 256)]))
+    # 0% for bit values between 128-225
+    battery_levels.update(dict([(k, 0) for k in range(128, 226)]))
+
+    # Define a contact quality ordering
+    #   github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
+
+    # For counter values between 0-15
+    cq_order = ["F3", "FC5", "AF3", "F7", "T7",  "P7",  "O1",
+                "O2", "P8",  "T8",  "F8", "AF4", "FC6", "F4",
+                "F8", "AF4"]
+
+    # 16-63 is currently unknown
+    cq_order.extend([None, ] * 48)
+
+    # Now the first 16 values repeat once more and ends with 'FC6'
+    cq_order.extend(cq_order[:16])
+    cq_order.append("FC6")
+
+    # Finally pattern 77-80 repeats until 127
+    cq_order.extend(cq_order[-4:] * 12)
+
+    # Store slices for bit manipulation for convenience
+    # This way we can get EEG data for a channel from a bitarray
+    # using bits[self.__slices["O3"]].
+    slices = dict((k, v) for k, v in
+                  zip(channels, (slice(8, 22),
+                                 slice(22, 36),
+                                 slice(36, 50),
+                                 slice(50, 64),
+                                 slice(64, 78),
+                                 slice(78, 92),
+                                 slice(92, 106),
+                                 slice(134, 148),
+                                 slice(148, 162),
+                                 slice(162, 176),
+                                 slice(176, 190),
+                                 slice(190, 204),
+                                 slice(204, 218),
+                                 slice(218, 232))))
+
+    # Gyroscope and sequence number slices
+    slices["GYROX"] = slice(233, 240)
+    slices["GYROY"] = slice(240, 248)
+    slices["SEQ#"] = slice(0, 8)
+
     def __init__(self, method, serial_number=None):
         # These seem to be the same for every device
-        self.__interface_desc = "Emotiv RAW DATA"
-        self.__manufacturer_desc = "Emotiv Systems Pty Ltd"
-
         self.vendor_id = None
         self.product_id = None
         self.decryptor = None
@@ -82,9 +145,12 @@ class EPOC(object):
         # Access method can be 'hidraw' or 'libusb'
         self.method = method
 
-        # Channel names
-        self.channels = ["F3", "FC5", "AF3", "F7", "T7", "P7", "O1",
-                         "O2", "P8",  "T8",  "F8", "AF4", "FC6", "F4"]
+        # One may like to specify the dongle with its serial
+        self.serial_number = serial_number
+
+        # libusb device and endpoint
+        self.device = None
+        self.endpoint = None
 
         # Dict for storing contact qualities
         self.quality = {
@@ -94,84 +160,10 @@ class EPOC(object):
             "FC6": 0, "F4": 0,
         }
 
-        # Define a contact quality ordering
-        #   github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
-
-        # For counter values between 0-15
-        self.cq_order = ["F3", "FC5", "AF3", "F7", "T7",  "P7",  "O1",
-                        "O2", "P8",  "T8",  "F8", "AF4", "FC6", "F4",
-                        "F8", "AF4"]
-
-        # 16-63 is currently unknown
-        self.cq_order.extend([None, ] * 48)
-
-        # Now the first 16 values repeat once more and ends with 'FC6'
-        self.cq_order.extend(self.cq_order[:16])
-        self.cq_order.append("FC6")
-
-        # Finally pattern 77-80 repeats until 127
-        self.cq_order.extend(self.cq_order[-4:] * 12)
-
         # Update __dict__ with convenience attributes for channels
         self.__dict__.update(dict((v, k) for k, v in enumerate(self.channels)))
 
-        # Store slices for bit manipulation for convenience
-        # This way we can get EEG data for a channel from a bitarray
-        # using bits[self.__slices["O3"]].
-        self.slices = dict((k, v) for k, v in
-                           zip(self.channels, (slice(8, 22),
-                                               slice(22, 36),
-                                               slice(36, 50),
-                                               slice(50, 64),
-                                               slice(64, 78),
-                                               slice(78, 92),
-                                               slice(92, 106),
-                                               slice(134, 148),
-                                               slice(148, 162),
-                                               slice(162, 176),
-                                               slice(176, 190),
-                                               slice(190, 204),
-                                               slice(204, 218),
-                                               slice(218, 232))))
-
-        # Gyroscope and sequence number slices
-        self.slices["GYROX"] = slice(233, 240)
-        self.slices["GYROX"] = slice(240, 248)
-        self.slices["SEQ#"] = slice(0, 8)
-
-        ##################
-        # ADC parameters #
-        # ################
-
-        # Sampling rate: 128Hz (Internal: 2048Hz)
-        self.sampling_rate = 128
-
-        # Battery levels
-        # github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
-        self.battery_levels = {247: 99, 246: 97, 245: 93, 244: 89, 243: 85,
-                               242: 82, 241: 77, 240: 72, 239: 66, 238: 62,
-                               237: 55, 236: 46, 235: 32, 234: 20, 233: 12,
-                               232: 6, 231: 4, 230: 3, 229: 2, 228: 1,
-                               227: 1, 226: 1,
-                               }
-        # 100% for bit values between 248-255
-        self.battery_levels.update(dict([(k, 100) for k in range(248, 256)]))
-        # 0% for bit values between 128-225
-        self.battery_levels.update(dict([(k, 0) for k in range(128, 226)]))
-
-        # One can want to specify the dongle with its serial
-        self.serial_number = serial_number
-
-        # libusb device and endpoint
-        self.device = None
-        self.endpoint = None
-
-        # Acquired data
-        self.packet_loss = 0
-        self.counter = 0
-        self.battery = 0
-        self.gyro_x = 0
-        self.gyro_y = 0
+        # Queues
         self.input_queue = JoinableQueue()
         self.output_queue = JoinableQueue()
 
@@ -181,22 +173,23 @@ class EPOC(object):
     def _is_epoc(self, device):
         """Custom match function for libusb."""
         try:
-            manu = usb.util.get_string(device, len(self.__manufacturer_desc),
+            manu = usb.util.get_string(device, len(self.MANUFACTURER_DESC),
                                        device.iManufacturer)
         except usb.core.USBError, usb_exception:
             # Skip failing devices as it happens on Raspberry Pi
             if usb_exception.errno == 32:
                 return False
             elif usb_exception.errno == 13:
+                print usb_exception
                 raise EPOCPermissionError("Problem with device permissions.")
         else:
-            if manu == self.__manufacturer_desc:
+            if manu == self.MANUFACTURER_DESC:
                 # Found a dongle, check for interface class 3
                 for interf in device.get_active_configuration():
                     if_str = usb.util.get_string(
-                        device, len(self.__interface_desc),
+                        device, len(self.INTERFACE_DESC),
                         interf.iInterface)
-                    if if_str == self.__interface_desc:
+                    if if_str == self.INTERFACE_DESC:
                         return True
 
     def enumerate(self):
@@ -218,16 +211,16 @@ class EPOC(object):
             self.product_id = "%X" % dev.idProduct
 
             if self.method == "libusb":
-                for interf in dev.get_active_configuration():
-                    if dev.is_kernel_driver_active(interf.bInterfaceNumber):
-                        # Detach kernel drivers and claim through libusb
-                        dev.detach_kernel_driver(interf.bInterfaceNumber)
-                        usb.util.claim_interface(dev, interf.bInterfaceNumber)
-
                 # 2nd interface is the one we need
+                interface = dev.get_active_configuration()[1]
+                if dev.is_kernel_driver_active(interface.bInterfaceNumber):
+                    # Detach kernel drivers and claim through libusb
+                    dev.detach_kernel_driver(interface.bInterfaceNumber)
+                    usb.util.claim_interface(dev, interface.bInterfaceNumber)
+
                 self.device = dev
-                self.endpoint = usb.util.find_descriptor(interf,
-                                                         bEndpointAddress=usb.ENDPOINT_IN | 2)
+                self.endpoint = usb.util.find_descriptor(
+                    interface, bEndpointAddress=usb.ENDPOINT_IN | 2)
             elif self.method == "hidraw":
                 if os.path.exists("/dev/emotiv_epoc"):
                     self.endpoint = open("/dev/emotiv_epoc")
@@ -322,8 +315,9 @@ class EPOC(object):
         elif self.method == "hidraw":
             os.close(self.endpoint)
 
-if __name__ == "__main__":
 
+def main():
+    """Test function for EPOC class."""
     epoc = EPOC(method="hidraw")
 
     eeg_data = epoc.acquire_data(1, ["O1", "O2"])
@@ -333,3 +327,8 @@ if __name__ == "__main__":
         cnt += ((int(eeg_data[0, i]) + 1) % 128) - int(eeg_data[0, i+1])
 
     print "Packets dropped: %d" % cnt
+    return 0
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
