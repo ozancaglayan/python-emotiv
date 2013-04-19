@@ -17,8 +17,6 @@
 ## along with this program; if not, write to the Free Software
 ## Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-from __future__ import print_function
-
 import os
 import sys
 import time
@@ -282,26 +280,26 @@ class EmotivEPOC(object):
 
     def dumpData(self):
         # Clear screen
-        print("\x1b[2J\x1b[H")
+        print "\x1b[2J\x1b[H"
         header = "Emotiv Data Packet [%3d/128] [Loss: %3d] [Battery: %2d(%%)]" % (
             self.counter, self.packetLoss, self.battery)
-        print("%s\n%s" % (header, '-'*len(header)))
+        print "%s\n%s" % (header, '-'*len(header))
 
-        print("%10s: %5d" % ("Gyro(x)", self.gyroX))
-        print("%10s: %5d" % ("Gyro(y)", self.gyroY))
+        print "%10s: %5d" % ("Gyro(x)", self.gyroX)
+        print "%10s: %5d" % ("Gyro(y)", self.gyroY)
 
         for i,channel in enumerate(self.channels):
-            print("%10s: %5d %20s: %5d (%.2f)" % (channel,
+            print "%10s: %5d %20s: %5d (%.2f)" % (channel,
                                            self.ch_buffer[i, self.counter],
                                            "Quality", self.quality[channel],
-                                           self.quality[channel]/540.))
+                                           self.quality[channel]/540.)
 
     def getContactQuality(self, electrode):
         "Return contact quality for the specified electrode."""
         try:
             return self.quality[electrode]
         except KeyError, ke:
-            print("Electrode name %s is wrong." % electrode)
+            print "Electrode name %s is wrong." % electrode
 
     def getBatteryLevel(self):
         """Returns the battery level."""
@@ -326,4 +324,4 @@ if __name__ == "__main__":
     for i in xrange(eeg_data[0,:].size - 1):
         cnt += ((int(eeg_data[0,i]) + 1) % 128) - int(eeg_data[0,i+1])
 
-    print("Packets dropped: %d" % cnt)
+    print "Packets dropped: %d" % cnt
