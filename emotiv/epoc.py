@@ -17,6 +17,11 @@
 ## along with this program; if not, write to the Free Software
 ## Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+"""\
+This module provides the EPOC class for accessing Emotiv EPOC
+EEG headsets.
+"""
+
 import os
 
 from multiprocessing import Process, JoinableQueue
@@ -57,10 +62,11 @@ class EPOCNotPluggedError(EPOCError):
 
 
 class EPOC(object):
-    def __init__(self, method, serialNumber=None):
+    """Class for accessing Emotiv EPOC headset devices."""
+    def __init__(self, method, serial_number=None):
         # These seem to be the same for every device
-        self.__INTERFACE_DESC = "Emotiv RAW DATA"
-        self.__MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
+        self.__interface_desc = "Emotiv RAW DATA"
+        self.__manufacturer_desc = "Emotiv Systems Pty Ltd"
 
         self.vendor_id = None
         self.product_id = None
@@ -86,19 +92,19 @@ class EPOC(object):
         #   github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
 
         # For counter values between 0-15
-        self.cqOrder = ["F3", "FC5", "AF3", "F7", "T7",  "P7",  "O1",
+        self.cq_order = ["F3", "FC5", "AF3", "F7", "T7",  "P7",  "O1",
                         "O2", "P8",  "T8",  "F8", "AF4", "FC6", "F4",
                         "F8", "AF4"]
 
         # 16-63 is currently unknown
-        self.cqOrder.extend([None, ] * 48)
+        self.cq_order.extend([None, ] * 48)
 
         # Now the first 16 values repeat once more and ends with 'FC6'
-        self.cqOrder.extend(self.cqOrder[:16])
-        self.cqOrder.append("FC6")
+        self.cq_order.extend(self.cq_order[:16])
+        self.cq_order.append("FC6")
 
         # Finally pattern 77-80 repeats until 127
-        self.cqOrder.extend(self.cqOrder[-4:] * 12)
+        self.cq_order.extend(self.cq_order[-4:] * 12)
 
         # Update __dict__ with convenience attributes for channels
         self.__dict__.update(dict((v, k) for k, v in enumerate(self.channels)))
@@ -148,18 +154,18 @@ class EPOC(object):
         self.battery_levels.update(dict([(k, 0) for k in range(128, 226)]))
 
         # One can want to specify the dongle with its serial
-        self.serialNumber = serialNumber
+        self.serial_number = serial_number
 
         # libusb device and endpoint
         self.device = None
         self.endpoint = None
 
         # Acquired data
-        self.packetLoss = 0
+        self.packet_loss = 0
         self.counter = 0
         self.battery = 0
-        self.gyroX = 0
-        self.gyroY = 0
+        self.gyro_x = 0
+        self.gyro_y = 0
         self.input_queue = JoinableQueue()
         self.output_queue = JoinableQueue()
 
@@ -169,38 +175,39 @@ class EPOC(object):
     def _is_epoc(self, device):
         """Custom match function for libusb."""
         try:
-            manu = usb.util.get_string(device, len(self.__MANUFACTURER_DESC),
+            manu = usb.util.get_string(device, len(self.__manufacturer_desc),
                                        device.iManufacturer)
-        except usb.core.USBError, ue:
+        except usb.core.USBError, usb_exception:
             # Skip failing devices as it happens on Raspberry Pi
-            if ue.errno == 32:
+            if usb_exception.errno == 32:
                 return False
-            elif ue.errno == 13:
+            elif usb_exception.errno == 13:
                 self.permissionProblem = True
         else:
-            if manu == self.__MANUFACTURER_DESC:
+            if manu == self.__manufacturer_desc:
                 # Found a dongle, check for interface class 3
                 for interf in device.get_active_configuration():
-                    ifStr = usb.util.get_string(
-                        device, len(self.__INTERFACE_DESC),
+                    if_str = usb.util.get_string(
+                        device, len(self.__interface_desc),
                         interf.iInterface)
-                    if ifStr == self.__INTERFACE_DESC:
+                    if if_str == self.__interface_desc:
                         return True
 
     def enumerate(self):
-        devs = usb.core.find(find_all=True, custom_match=self._is_epoc)
+        """Traverse through USB bus and enumerate EPOC devices."""
+        devices = usb.core.find(find_all=True, custom_match=self._is_epoc)
 
-        if not devs:
+        if not devices:
             raise EPOCNotPluggedError("Emotiv EPOC not found.")
 
-        for dev in devs:
-            sn = usb.util.get_string(dev, 32, dev.iSerialNumber)
-            if self.serialNumber and self.serialNumber != sn:
+        for dev in devices:
+            serial = usb.util.get_string(dev, 32, dev.iSerialNumber)
+            if self.serial_number and self.serial_number != serial:
                 # If a special S/N is given, look for it.
                 continue
 
             # Record some attributes
-            self.serialNumber = sn
+            self.serial_number = serial
             self.vendor_id = "%X" % dev.idVendor
             self.product_id = "%X" % dev.idProduct
 
@@ -225,32 +232,32 @@ class EPOC(object):
             # Return the first Emotiv headset by default
             break
 
-        self.setupEncryption()
+        self.setup_encryption()
         self.endpoint.read(32)
 
-    def setupEncryption(self, research=True):
+    def setup_encryption(self, research=True):
         """Generate the encryption key and setup Crypto module.
         The key is based on the serial number of the device and the
         information whether it is a research or consumer device.
         """
         if research:
-            self.decryption_key = ''.join([self.serialNumber[15], '\x00',
-                                           self.serialNumber[14], '\x54',
-                                           self.serialNumber[13], '\x10',
-                                           self.serialNumber[12], '\x42',
-                                           self.serialNumber[15], '\x00',
-                                           self.serialNumber[14], '\x48',
-                                           self.serialNumber[13], '\x00',
-                                           self.serialNumber[12], '\x50'])
+            self.decryption_key = ''.join([self.serial_number[15], '\x00',
+                                           self.serial_number[14], '\x54',
+                                           self.serial_number[13], '\x10',
+                                           self.serial_number[12], '\x42',
+                                           self.serial_number[15], '\x00',
+                                           self.serial_number[14], '\x48',
+                                           self.serial_number[13], '\x00',
+                                           self.serial_number[12], '\x50'])
         else:
-            self.decryption_key = ''.join([self.serialNumber[15], '\x00',
-                                           self.serialNumber[14], '\x48',
-                                           self.serialNumber[13], '\x00',
-                                           self.serialNumber[12], '\x54',
-                                           self.serialNumber[15], '\x10',
-                                           self.serialNumber[14], '\x42',
-                                           self.serialNumber[13], '\x00',
-                                           self.serialNumber[12], '\x50'])
+            self.decryption_key = ''.join([self.serial_number[15], '\x00',
+                                           self.serial_number[14], '\x48',
+                                           self.serial_number[13], '\x00',
+                                           self.serial_number[12], '\x54',
+                                           self.serial_number[15], '\x10',
+                                           self.serial_number[14], '\x42',
+                                           self.serial_number[13], '\x00',
+                                           self.serial_number[12], '\x50'])
 
         self.decryptor = Process(target=decryptor,
                                  args=[self.decryption_key,
@@ -259,43 +266,44 @@ class EPOC(object):
         self.decryptor.daemon = True
         self.decryptor.start()
 
-    def acquireData(self, duration, channelMask, savePrefix=None):
-        totalSamples = duration * self.sampling_rate
-        while self.output_queue.qsize() != totalSamples:
+    def acquire_data(self, duration, channel_mask, save_prefix=None):
+        """Acquire data from the EPOC headset."""
+        total_samples = duration * self.sampling_rate
+        while self.output_queue.qsize() != total_samples:
             # Fetch new data
             try:
                 self.input_queue.put(self.endpoint.read(32))
-            except usb.USBError as e:
-                if e.errno == 110:
+            except usb.USBError as usb_exception:
+                if usb_exception.errno == 110:
                     raise EPOCTurnedOffError(
                         "Make sure that headset is turned on")
                 else:
                     raise EPOCUSBError("USB I/O error with errno = %d" %
-                                       e.errno)
+                                       usb_exception.errno)
 
         # Process and return the final data
         self.output_queue.join()
 
         # +1 for sequence numbers
-        eeg_data = np.zeros((len(channelMask)+1, self.output_queue.qsize()))
+        eeg_data = np.zeros((len(channel_mask)+1, self.output_queue.qsize()))
         for spl in xrange(self.output_queue.qsize()):
             bits = self.output_queue.get()
             eeg_data[0, spl] = bits[self.slices["SEQ#"]].uint
-            for i, chName in enumerate(channelMask):
-                # chName's are strings like "O1", "O2", etc.
-                eeg_data[i+1, spl] = bits[self.slices[chName]].uint
+            for index, ch_name in enumerate(channel_mask):
+                # ch_name's are strings like "O1", "O2", etc.
+                eeg_data[index + 1, spl] = bits[self.slices[ch_name]].uint
 
-        if savePrefix:
+        if save_prefix:
             # Save as matlab data with channel annotations
-            matlabData = {"SEQ": eeg_data[0]}
-            for i, chName in enumerate(channelMask):
-                matlabData[chName] = eeg_data[i+1]
-            savemat("%s-%s.mat" % (savePrefix, "-".join(channelMask)),
-                    matlabData, oned_as='row')
+            matlab_data = {"SEQ": eeg_data[0]}
+            for index, ch_name in enumerate(channel_mask):
+                matlab_data[ch_name] = eeg_data[index + 1]
+            savemat("%s-%s.mat" % (save_prefix, "-".join(channel_mask)),
+                    matlab_data, oned_as='row')
 
         return eeg_data
 
-    def getContactQuality(self, electrode):
+    def get_quality(self, electrode):
         "Return contact quality for the specified electrode."""
         return self.quality.get(electrode, None)
 
@@ -312,7 +320,7 @@ if __name__ == "__main__":
 
     epoc = EPOC(method="hidraw")
 
-    eeg_data = epoc.acquireData(1, ["O1", "O2"])
+    eeg_data = epoc.acquire_data(1, ["O1", "O2"])
 
     cnt = 0
     for i in xrange(eeg_data[0, :].size - 1):
