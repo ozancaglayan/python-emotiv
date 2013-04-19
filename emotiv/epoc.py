@@ -136,11 +136,12 @@ class EPOC(object):
     slices["SEQ#"] = slice(0, 8)
 
     def __init__(self, method, serial_number=None):
-        # These seem to be the same for every device
         self.vendor_id = None
         self.product_id = None
         self.decryptor = None
         self.decryption_key = None
+
+        self.buffer = None
 
         # Access method can be 'hidraw' or 'libusb'
         self.method = method
@@ -265,8 +266,15 @@ class EPOC(object):
         self.decryptor.daemon = True
         self.decryptor.start()
 
-    def acquire_data(self, duration, channel_mask, save_prefix=None):
+    def acquire_data(self, duration, channel_mask=None):
         """Acquire data from the EPOC headset."""
+
+        # Acquire all channels by default
+        if channel_mask is None:
+            channel_mask = self.channels
+        # Delete previous buffer
+        del self.buffer
+
         total_samples = duration * self.sampling_rate
         while self.output_queue.qsize() != total_samples:
             # Fetch new data
@@ -284,23 +292,25 @@ class EPOC(object):
         self.output_queue.join()
 
         # +1 for sequence numbers
-        eeg_data = np.zeros((len(channel_mask)+1, self.output_queue.qsize()))
+        self.buffer = np.zeros((len(channel_mask)+1, self.output_queue.qsize()))
         for spl in xrange(self.output_queue.qsize()):
             bits = self.output_queue.get()
-            eeg_data[0, spl] = bits[self.slices["SEQ#"]].uint
+            self.buffer[0, spl] = bits[self.slices["SEQ#"]].uint
             for index, ch_name in enumerate(channel_mask):
                 # ch_name's are strings like "O1", "O2", etc.
-                eeg_data[index + 1, spl] = bits[self.slices[ch_name]].uint
+                self.buffer[index + 1, spl] = bits[self.slices[ch_name]].uint
 
-        if save_prefix:
+        return self.buffer
+
+    def save_as_matlab(self, filename):
+        """Save acquired data as matlab file."""
+        if self.buffer:
             # Save as matlab data with channel annotations
-            matlab_data = {"SEQ": eeg_data[0]}
-            for index, ch_name in enumerate(channel_mask):
-                matlab_data[ch_name] = eeg_data[index + 1]
-            savemat("%s-%s.mat" % (save_prefix, "-".join(channel_mask)),
-                    matlab_data, oned_as='row')
-
-        return eeg_data
+            matlab_data = {"SEQ": self.buffer[0]}
+            # FIXME: This doesn't handle non-default channel masks
+            for index, ch_name in enumerate(self.channels):
+                matlab_data[ch_name] = self.buffer[index + 1]
+                savemat("%s.mat" % filename, matlab_data, oned_as='row')
 
     def get_quality(self, electrode):
         "Return contact quality for the specified electrode."""
