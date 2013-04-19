@@ -292,22 +292,6 @@ class EPOC(object):
 
         return eeg_data
 
-    def dumpData(self):
-        # Clear screen
-        print "\x1b[2J\x1b[H"
-        header = "Emotiv Data Packet [%3d/128] [Loss: %3d] [Battery: %2d(%%)]" % (
-            self.counter, self.packetLoss, self.battery)
-        print "%s\n%s" % (header, '-'*len(header))
-
-        print "%10s: %5d" % ("Gyro(x)", self.gyroX)
-        print "%10s: %5d" % ("Gyro(y)", self.gyroY)
-
-        for i,channel in enumerate(self.channels):
-            print "%10s: %5d %20s: %5d (%.2f)" % (channel,
-                                           self.ch_buffer[i, self.counter],
-                                           "Quality", self.quality[channel],
-                                           self.quality[channel]/540.)
-
     def getContactQuality(self, electrode):
         "Return contact quality for the specified electrode."""
         try:
