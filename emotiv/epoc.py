@@ -65,24 +65,35 @@ class EPOC(object):
         # Access method can be 'hidraw' or 'libusb'
         self.method = method
 
+        # Channel names
+        self.channels = ["F3", "FC5", "AF3", "F7", "T7", "P7", "O1",
+                         "O2", "P8",  "T8",  "F8", "AF4","FC6","F4"]
+
+        # Dict for storing contact qualities
+        self.quality = {
+                            "F3" : 0, "FC5" : 0, "AF3" : 0, "F7" : 0,
+                            "T7" : 0, "P7"  : 0, "O1"  : 0, "O2" : 0,
+                            "P8" : 0, "T8"  : 0, "F8"  : 0, "AF4": 0,
+                            "FC6": 0, "F4"  : 0,
+                       }
+
         # Define a contact quality ordering
-        # See:
         #   github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
+
         # For counter values between 0-15
         self.cqOrder = ["F3", "FC5", "AF3", "F7", "T7",  "P7",  "O1",
                         "O2", "P8",  "T8",  "F8", "AF4", "FC6", "F4",
                         "F8", "AF4"]
+
         # 16-63 is currently unknown
         self.cqOrder.extend([None,] * 48)
+
         # Now the first 16 values repeat once more and ends with 'FC6'
         self.cqOrder.extend(self.cqOrder[:16])
         self.cqOrder.append("FC6")
+
         # Finally pattern 77-80 repeats until 127
         self.cqOrder.extend(self.cqOrder[-4:] * 12)
-
-        # Channel names
-        self.channels = ["F3", "FC5", "AF3", "F7", "T7", "P7", "O1",
-                         "O2", "P8",  "T8",  "F8", "AF4","FC6","F4"]
 
         # Update __dict__ with convenience attributes for channels
         self.__dict__.update(dict((v, k) for k,v in enumerate(self.channels)))
@@ -118,15 +129,6 @@ class EPOC(object):
         # Sampling rate: 128Hz (Internal: 2048Hz)
         self.sampling_rate = 128
 
-        # Vertical resolution (0.51 microVolt)
-        self.resolution = 0.51
-
-        # Each channel has 14 bits of data
-        self.ch_bits = 14
-
-        self.ch_buffer = np.ndarray([len(self.channels), self.sampling_rate],
-                buffer=np.zeros([len(self.channels), self.sampling_rate]), dtype=int)
-
         # Battery levels
         # github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
         self.battery_levels = {247:99, 246:97, 245:93, 244:89, 243:85,
@@ -153,13 +155,6 @@ class EPOC(object):
         self.battery = 0
         self.gyroX   = 0
         self.gyroY   = 0
-        self.quality = {
-                            "F3" : 0, "FC5" : 0, "AF3" : 0, "F7" : 0,
-                            "T7" : 0, "P7"  : 0, "O1"  : 0, "O2" : 0,
-                            "P8" : 0, "T8"  : 0, "F8"  : 0, "AF4": 0,
-                            "FC6": 0, "F4"  : 0,
-                       }
-
         self.input_queue = JoinableQueue()
         self.output_queue = JoinableQueue()
 
