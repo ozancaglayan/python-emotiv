@@ -289,10 +289,7 @@ class EPOC(object):
 
     def getContactQuality(self, electrode):
         "Return contact quality for the specified electrode."""
-        try:
-            return self.quality[electrode]
-        except KeyError, ke:
-            print "Electrode name %s is wrong." % electrode
+        return self.quality.get(electrode, None)
 
     def disconnect(self):
         """Release the claimed interface."""
