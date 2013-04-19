@@ -33,6 +33,7 @@ from scipy.io import savemat
 
 from decryptionProcess import decryptionProcess as decryptionThread
 
+
 class EPOCError(Exception):
     """Base class for exceptions in this module."""
     pass
@@ -52,6 +53,8 @@ class EPOCUSBError(EPOCError):
 class EPOCNotPluggedError(EPOCError):
     """Exception raised when EPOC dongle cannot be detected."""
     pass
+
+
 
 class EmotivEPOC(object):
     def __init__(self, method, serialNumber=None):
@@ -286,10 +289,6 @@ class EmotivEPOC(object):
 
         return eeg_data
 
-    def getData(self, what):
-        self.acquireData()
-        return self.ch_buffer[self.channels.index(what), :]
-
     def dumpData(self):
         # Clear screen
         print "\x1b[2J\x1b[H"
@@ -312,10 +311,6 @@ class EmotivEPOC(object):
             return self.quality[electrode]
         except KeyError, ke:
             print "Electrode name %s is wrong." % electrode
-
-    def getBatteryLevel(self):
-        """Returns the battery level."""
-        return self.battery
 
     def disconnect(self):
         """Release the claimed interface."""
