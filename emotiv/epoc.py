@@ -153,6 +153,9 @@ class EPOC(object):
         self.device = None
         self.endpoint = None
 
+        # By default acquire from all channels
+        self.channel_mask = self.channels
+
         # Dict for storing contact qualities
         self.quality = {
             "F3": 0, "FC5": 0, "AF3": 0, "F7": 0,
@@ -192,6 +195,10 @@ class EPOC(object):
                         interf.iInterface)
                     if if_str == self.INTERFACE_DESC:
                         return True
+
+    def set_channel_mask(self, channel_mask):
+        """Set channels from which to acquire."""
+        self.channel_mask = channel_mask
 
     def enumerate(self):
         """Traverse through USB bus and enumerate EPOC devices."""
@@ -266,12 +273,9 @@ class EPOC(object):
         self.decryptor.daemon = True
         self.decryptor.start()
 
-    def acquire_data(self, duration, channel_mask=None):
+    def acquire_data(self, duration):
         """Acquire data from the EPOC headset."""
 
-        # Acquire all channels by default
-        if channel_mask is None:
-            channel_mask = self.channels
         # Delete previous buffer
         del self.buffer
 
@@ -292,11 +296,11 @@ class EPOC(object):
         self.output_queue.join()
 
         # +1 for sequence numbers
-        self.buffer = np.zeros((len(channel_mask)+1, self.output_queue.qsize()))
+        self.buffer = np.zeros((len(self.channel_mask)+1, self.output_queue.qsize()))
         for spl in xrange(self.output_queue.qsize()):
             bits = self.output_queue.get()
             self.buffer[0, spl] = bits[self.slices["SEQ#"]].uint
-            for index, ch_name in enumerate(channel_mask):
+            for index, ch_name in enumerate(self.channel_mask):
                 # ch_name's are strings like "O1", "O2", etc.
                 self.buffer[index + 1, spl] = bits[self.slices[ch_name]].uint
 
@@ -307,8 +311,7 @@ class EPOC(object):
         if self.buffer:
             # Save as matlab data with channel annotations
             matlab_data = {"SEQ": self.buffer[0]}
-            # FIXME: This doesn't handle non-default channel masks
-            for index, ch_name in enumerate(self.channels):
+            for index, ch_name in enumerate(self.channel_mask):
                 matlab_data[ch_name] = self.buffer[index + 1]
                 savemat("%s.mat" % filename, matlab_data, oned_as='row')
 
@@ -330,7 +333,9 @@ def main():
     """Test function for EPOC class."""
     epoc = EPOC(method="hidraw")
 
-    eeg_data = epoc.acquire_data(1, ["O1", "O2"])
+    epoc.set_channel_mask(["O1", "O2"])
+
+    eeg_data = epoc.acquire_data(1)
 
     cnt = 0
     for i in xrange(eeg_data[0, :].size - 1):
