@@ -76,7 +76,7 @@ def main():
 
     # Resting eeg for 4 seconds
     eeg_rest = headset.acquire_data(duration)
-    headset.save_as_matlab("eeg-resting")
+    headset.save_as_matlab(eeg_rest, "eeg-resting")
 
     # Start flickering
     for process in pool:
@@ -85,7 +85,7 @@ def main():
 
     # SSVEP eeg for 4 seconds
     eeg_ssvep = headset.acquire_data(duration)
-    headset.save_as_matlab("eeg-ssvep")
+    headset.save_as_matlab(eeg_ssvep, "eeg-ssvep")
 
     # Stop LED's
     #for p in pool:
