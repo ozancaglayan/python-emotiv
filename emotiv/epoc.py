@@ -135,7 +135,7 @@ class EPOC(object):
     slices["GYROY"] = slice(240, 248)
     slices["SEQ#"] = slice(0, 8)
 
-    def __init__(self, method, serial_number=None):
+    def __init__(self, method, dummy=False, serial_number=None):
         self.vendor_id = None
         self.product_id = None
         self.decryptor = None
@@ -145,6 +145,9 @@ class EPOC(object):
 
         # Access method can be 'hidraw' or 'libusb'
         self.method = method
+
+        # If dummy is given the class behaves as a random signal generator
+        self.dummy = dummy
 
         # One may like to specify the dongle with its serial
         self.serial_number = serial_number
@@ -202,6 +205,10 @@ class EPOC(object):
 
     def enumerate(self):
         """Traverse through USB bus and enumerate EPOC devices."""
+        if dummy:
+            self.endpoint = open("/dev/urandom")
+            return
+
         devices = usb.core.find(find_all=True, custom_match=self._is_epoc)
 
         if not devices:
@@ -325,7 +332,7 @@ class EPOC(object):
             for interf in self.device.get_active_configuration():
                 usb.util.release_interface(
                     self.device, interf.bInterfaceNumber)
-        elif self.method == "hidraw":
+        else:
             os.close(self.endpoint)
 
 
