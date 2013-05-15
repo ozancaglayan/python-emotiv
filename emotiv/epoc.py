@@ -205,7 +205,7 @@ class EPOC(object):
 
     def enumerate(self):
         """Traverse through USB bus and enumerate EPOC devices."""
-        if dummy:
+        if self.dummy:
             self.endpoint = open("/dev/urandom")
             return
 
