@@ -33,7 +33,8 @@ import numpy as np
 
 from scipy.io import savemat
 
-import decryptor, utils
+import utils
+from decryptor import decryptionProcess
 
 
 class EPOCError(Exception):
@@ -138,10 +139,8 @@ class EPOC(object):
     def __init__(self, method, dummy=False, serial_number=None):
         self.vendor_id = None
         self.product_id = None
-        self.decryptor = None
+        self.decryption = None
         self.decryption_key = None
-
-        self.buffer = None
 
         # Access method can be 'hidraw' or 'libusb'
         self.method = method
@@ -273,18 +272,15 @@ class EPOC(object):
                                            self.serial_number[13], '\x00',
                                            self.serial_number[12], '\x50'])
 
-        self.decryptor = Process(target=decryptor,
+        self.decryption = Process(target=decryptionProcess,
                                  args=[self.decryption_key,
                                        self.input_queue,
                                        self.output_queue, False])
-        self.decryptor.daemon = True
-        self.decryptor.start()
+        self.decryption.daemon = True
+        self.decryption.start()
 
     def acquire_data(self, duration):
         """Acquire data from the EPOC headset."""
-
-        # Delete previous buffer
-        del self.buffer
 
         total_samples = duration * self.sampling_rate
         while self.output_queue.qsize() != total_samples:
@@ -303,24 +299,23 @@ class EPOC(object):
         self.output_queue.join()
 
         # +1 for sequence numbers
-        self.buffer = np.zeros((len(self.channel_mask)+1, self.output_queue.qsize()))
+        _buffer = np.zeros((len(self.channel_mask)+1, self.output_queue.qsize()))
         for spl in xrange(self.output_queue.qsize()):
             bits = self.output_queue.get()
-            self.buffer[0, spl] = bits[self.slices["SEQ#"]].uint
+            _buffer[0, spl] = bits[self.slices["SEQ#"]].uint
             for index, ch_name in enumerate(self.channel_mask):
                 # ch_name's are strings like "O1", "O2", etc.
-                self.buffer[index + 1, spl] = bits[self.slices[ch_name]].uint
+                _buffer[index + 1, spl] = bits[self.slices[ch_name]].uint
 
-        return self.buffer
+        return _buffer
 
-    def save_as_matlab(self, filename):
+    def save_as_matlab(self, _buffer, filename):
         """Save acquired data as matlab file."""
-        if self.buffer:
-            # Save as matlab data with channel annotations
-            matlab_data = {"SEQ": self.buffer[0]}
-            for index, ch_name in enumerate(self.channel_mask):
-                matlab_data[ch_name] = self.buffer[index + 1]
-                savemat("%s.mat" % filename, matlab_data, oned_as='row')
+        # Save as matlab data with channel annotations
+        matlab_data = {"SEQ": _buffer[0]}
+        for index, ch_name in enumerate(self.channel_mask):
+            matlab_data[ch_name] = _buffer[index + 1]
+            savemat("%s.mat" % filename, matlab_data, oned_as='row')
 
     def get_quality(self, electrode):
         "Return contact quality for the specified electrode."""
@@ -340,18 +335,13 @@ def main():
     """Test function for EPOC class."""
     epoc = EPOC(method="hidraw")
 
+    duration = 4
     epoc.set_channel_mask(["O1", "O2"])
 
-    eeg_rest = epoc.acquire_data(4)
-    epoc.save_as_matlab("eeg-resting")
+    eeg = epoc.acquire_data(duration)
+    epoc.save_as_matlab(eeg, "sample-eeg-%s" % duration)
 
-    # FIXME: Start flickering
-
-    eeg_ssvep = epoc.acquire_data(4)
-    epoc.save_as_matlab("eeg-ssvep")
-
-    print "Packets dropped: %d" % utils.check_packet_drops(eeg_rest[0, :])
-    print "Packets dropped: %d" % utils.check_packet_drops(eeg_ssvep[0, :])
+    print "Packets dropped: %d" % utils.check_packet_drops(eeg[0, :])
 
 if __name__ == "__main__":
     import sys
