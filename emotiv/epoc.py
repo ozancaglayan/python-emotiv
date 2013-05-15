@@ -33,7 +33,7 @@ import numpy as np
 
 from scipy.io import savemat
 
-from emotiv import decryptor
+from emotiv import decryptor, utils
 
 
 class EPOCError(Exception):
@@ -335,14 +335,16 @@ def main():
 
     epoc.set_channel_mask(["O1", "O2"])
 
-    eeg_data = epoc.acquire_data(1)
+    eeg_rest = epoc.acquire_data(4)
+    epoc.save_as_matlab("eeg-resting")
 
-    cnt = 0
-    for i in xrange(eeg_data[0, :].size - 1):
-        cnt += ((int(eeg_data[0, i]) + 1) % 128) - int(eeg_data[0, i+1])
+    # FIXME: Start flickering
 
-    print "Packets dropped: %d" % cnt
-    return 0
+    eeg_ssvep = epoc.acquire_data(4)
+    epoc.save_as_matlab("eeg-ssvep")
+
+    print "Packets dropped: %d" % utils.check_packet_drops(eeg_rest[0, :])
+    print "Packets dropped: %d" % utils.check_packet_drops(eeg_ssvep[0, :])
 
 if __name__ == "__main__":
     import sys
