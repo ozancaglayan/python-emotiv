@@ -33,7 +33,7 @@ import numpy as np
 
 from scipy.io import savemat
 
-from emotiv import decryptor, utils
+import decryptor, utils
 
 
 class EPOCError(Exception):
