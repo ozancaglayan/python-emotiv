@@ -56,8 +56,8 @@ def blinkLed(pin, frequency):
 def main():
 
     # Setup headset
-    epoc = emotiv.EPOC(method="hidraw")
-    epoc.set_channel_mask(["O1", "O2"])
+    headset = epoc.EPOC(method="hidraw")
+    headset.set_channel_mask(["O1", "O2"])
 
     # Setup pins
     GPIO.setmode(GPIO.BOARD)
@@ -75,8 +75,8 @@ def main():
         pool.append(Process(target=blinkLed, args=(pin, frequency)))
 
     # Resting eeg for 4 seconds
-    eeg_rest = epoc.acquire_data(duration)
-    epoc.save_as_matlab("eeg-resting")
+    eeg_rest = headset.acquire_data(duration)
+    headset.save_as_matlab("eeg-resting")
 
     # Start flickering
     for process in pool:
@@ -84,8 +84,8 @@ def main():
         process.start()
 
     # SSVEP eeg for 4 seconds
-    eeg_ssvep = epoc.acquire_data(duration)
-    epoc.save_as_matlab("eeg-ssvep")
+    eeg_ssvep = headset.acquire_data(duration)
+    headset.save_as_matlab("eeg-ssvep")
 
     # Stop LED's
     #for p in pool:
@@ -96,7 +96,7 @@ def main():
         for process in pool:
             process.terminate()
     except KeyboardInterrupt, ke:
-        epoc.disconnect()
+        headset.disconnect()
         GPIO.cleanup()
 
 if __name__ == "__main__":
