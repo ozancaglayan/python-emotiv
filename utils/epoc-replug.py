@@ -16,8 +16,8 @@ if __name__ == "__main__":
             pass
 
     with open("/sys/bus/usb/drivers/usb/unbind", "w") as unbind:
-        unbind.write(os.path.basename(epoc))
+        unbind.write(epoc)
     with open("/sys/bus/usb/drivers/usb/bind", "w") as bind:
-        bind.write(os.path.basename(epoc))
+        bind.write(epoc)
 
 
