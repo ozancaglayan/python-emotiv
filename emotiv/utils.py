@@ -18,10 +18,10 @@
 ## Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 def check_packet_drops(seq_numbers):
-
-    cnt = 0
+    lost = []
     for seq in xrange(len(seq_numbers) - 1):
         cur = int(seq_numbers[seq])
         _next = int(seq_numbers[seq + 1])
-        cnt += (((cur + 1) % 128) - _next)
-    return cnt
+        if ((cur + 1) % 128) != _next:
+            lost.append((cur + 1) % 128)
+    return lost
