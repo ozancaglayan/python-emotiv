@@ -62,9 +62,13 @@ def main():
     # Setup pins
     GPIO.setmode(GPIO.BOARD)
 
+    # Experiment duration
     duration = 4
 
+    # Process pool
     pool = []
+
+    # Stimuli and experiment information
     stimuli = {
                 PIN_LEFT_ARM    :   7.5,
                 PIN_RIGHT_ARM   :   10,
@@ -73,24 +77,27 @@ def main():
     experiment = {"SSVEP":      stimuli.values(),
                   "Duration":   duration,
                   "LED":        "Green",
+                  "Date":       time.strftime("%d-%h-%Y %H:%M"),
                  }
 
     # Spawn processes
     for pin, frequency in stimuli.items():
         pool.append(Process(target=blinkLed, args=(pin, frequency)))
 
-    # Resting eeg for 4 seconds
+    # Resting EEG
     eeg_rest = headset.acquire_data(duration)
-    headset.save_as_matlab(eeg_rest, "eeg-resting", experiment)
 
     # Start flickering
     for process in pool:
         process.daemon = True
         process.start()
 
-    # SSVEP eeg for 4 seconds
+    # SSVEP EEG
     eeg_ssvep = headset.acquire_data(duration)
+
+    # Save data as matlab files
     headset.save_as_matlab(eeg_ssvep, "eeg-ssvep", experiment)
+    headset.save_as_matlab(eeg_rest, "eeg-resting", experiment)
 
     # Stop LED's
     #for p in pool:
