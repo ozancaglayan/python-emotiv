@@ -309,10 +309,15 @@ class EPOC(object):
 
         return _buffer
 
-    def save_as_matlab(self, _buffer, filename):
+    def save_as_matlab(self, _buffer, filename, metadata=None):
         """Save acquired data as matlab file."""
         # Save as matlab data with channel annotations
         matlab_data = {"SEQ": _buffer[0]}
+
+        # Inject metadata
+        if metadata:
+            for key, value in metadata.items():
+                matlab_data[key] = value
         for index, ch_name in enumerate(self.channel_mask):
             matlab_data[ch_name] = _buffer[index + 1]
             savemat("%s.mat" % filename, matlab_data, oned_as='row')
