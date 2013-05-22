@@ -96,21 +96,20 @@ def main():
     # SSVEP EEG
     eeg_ssvep = headset.acquire_data(duration)
 
-    # Save data as matlab files
-    headset.save_as_matlab(eeg_ssvep, "eeg-ssvep", experiment)
-    headset.save_as_matlab(eeg_rest, "eeg-resting", experiment)
-
     # Stop LED's
-    #for p in pool:
-    #    os.kill(p.pid, signal.SIGSTOP)
+    for p in pool:
+        p.terminate()
 
-    # Finish
+    # Close devices
     try:
-        for process in pool:
-            process.terminate()
-    except KeyboardInterrupt, ke:
         headset.disconnect()
         GPIO.cleanup()
+    except e:
+        print e
+
+    # Finally, save the data as matlab files
+    headset.save_as_matlab(eeg_ssvep, "eeg-ssvep", experiment)
+    headset.save_as_matlab(eeg_rest, "eeg-resting", experiment)
 
 if __name__ == "__main__":
     sys.exit(main())
