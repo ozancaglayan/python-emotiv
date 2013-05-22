@@ -333,7 +333,7 @@ class EPOC(object):
                 usb.util.release_interface(
                     self.device, interf.bInterfaceNumber)
         else:
-            os.close(self.endpoint)
+            self.endpoint.close()
 
 
 def main():
