@@ -82,7 +82,8 @@ def main():
 
     # Spawn processes
     for pin, frequency in stimuli.items():
-        pool.append(Process(target=blinkLed, args=(pin, frequency)))
+        if frequency > 0:
+            pool.append(Process(target=blinkLed, args=(pin, frequency)))
 
     # Resting EEG
     eeg_rest = headset.acquire_data(duration)
