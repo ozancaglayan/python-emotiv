@@ -19,15 +19,17 @@
 
 import numpy as np
 from scipy import fftpack
+from scipy import signal
 
 def fft(data):
     # Those can be precomputed for several data lengths
     time_step = 1/128.0
+
     sampling_freqs = fftpack.fftfreq(data.size, d=time_step)
     positive_freqs = np.where(sampling_freqs > 0)
     freqs = sampling_freqs[positive_freqs]
 
     # Here's the computation part
-    power = np.abs(fftpack.fft(data))[positive_freqs]
+    power = np.abs(fftpack.fft(signal.detrend(data)))[positive_freqs]
     return freqs, power
 
