@@ -18,20 +18,14 @@ Dependencies
 * [pycrypto](https://www.dlitz.net/software/pycrypto)
 * [python-bitstring](http://code.google.com/p/python-bitstring)
 * numpy
-* matplotlib
 * scipy
+* matplotlib (For data analysis scripts under utils/)
+* RPi GPIO (For SSVEP BCI in examples/)
 
 Installation
 ============
 
-Copy the relevant udev rule under /etc/udev/rules.d before plugging the EPOC
-dongle for being able to run this as a non-root user.
-
-Usage
-=====
-
-You do not need to put the headset or mount the dry electrodes in order to
-acquire gyroscope data.
+Just run ```python setup.py install``` to install the module on your system.
 
 Screenshot
 ==========
@@ -41,8 +35,11 @@ and output the data once in a second on your terminal:
 
 ![Terminal screenshot](https://raw.github.com/ozancaglayan/python-emotiv/master/doc/sc_console.png)
 
+Note that the datalogger is outdated and does not use the latest EPOC class from this repository.
+I will port it to the new interface as soon as it's possible.
+
+
 Authors
 =======
 
-Ozan Çağlayan
-Galatasaray University, Computer Engineering Dept.
+Ozan Çağlayan, Galatasaray University, Computer Engineering Dept.
