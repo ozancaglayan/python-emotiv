@@ -64,33 +64,40 @@ def main():
 
     # Experiment duration
     duration = 4
+    try:
+        duration = int(sys.argv[1])
+    except:
+        pass
 
     # Process pool
     pool = []
 
     # Stimuli and experiment information
     stimuli = {
-                PIN_LEFT_ARM    :   7.5,
-                PIN_RIGHT_ARM   :   10,
+                PIN_LEFT_ARM    :   10.8,
+                PIN_RIGHT_ARM   :   15,
               }
 
     experiment = {"SSVEP":      stimuli.values(),
                   "Duration":   duration,
                   "LED":        "Green",
+                  "Subject":    "OC",
+                  "Age":        28,
                   "Date":       time.strftime("%d-%h-%Y %H:%M"),
                  }
 
     # Spawn processes
     for pin, frequency in stimuli.items():
         if frequency > 0:
-            pool.append(Process(target=blinkLed, args=(pin, frequency)))
+            process = Process(target=blinkLed, args=(pin, frequency))
+            process.daemon = True
+            pool.append(process)
 
     # Resting EEG
     eeg_rest = headset.acquire_data(duration)
 
     # Start flickering
     for process in pool:
-        process.daemon = True
         process.start()
 
     # SSVEP EEG
