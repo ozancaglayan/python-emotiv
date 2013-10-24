@@ -25,11 +25,13 @@ EEG headsets.
 import os
 
 from multiprocessing import Process, JoinableQueue
+from Crypto.Cipher import AES
 
 import usb.core
 import usb.util
 
 import numpy as np
+from bitstring import BitArray
 
 from scipy.io import savemat
 
@@ -272,12 +274,35 @@ class EPOC(object):
                                            self.serial_number[13], '\x00',
                                            self.serial_number[12], '\x50'])
 
+        self._cipher = AES.new(self.decryption_key)
+
+    def set_external_decryption(self):
+        """Use another process for concurrent decryption."""
         self.decryption = Process(target=decryptionProcess,
-                                 args=[self.decryption_key,
-                                       self.input_queue,
-                                       self.output_queue, False])
+                                  args=[self.decryption_key,
+                                        self.input_queue,
+                                        self.output_queue, False])
         self.decryption.daemon = True
         self.decryption.start()
+
+    def get_sample(self):
+        """Returns an array of EEG samples."""
+        try:
+            raw_data = self._cipher.decrypt(self.endpoint.read(32))
+            bits = BitArray(bytes=raw_data)
+            if not bits[0]:
+                # Normal data
+                return [bits[self.slices[n]].uint for n in self.channel_mask]
+            else:
+                # Battery & Contact Quality
+                return []
+        except usb.USBError as usb_exception:
+            if usb_exception.errno == 110:
+                raise EPOCTurnedOffError(
+                        "Make sure that headset is turned on")
+            else:
+                raise EPOCUSBError("USB I/O error with errno = %d" %
+                        usb_exception.errno)
 
     def acquire_data(self, duration):
         """Acquire data from the EPOC headset."""
