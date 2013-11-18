@@ -163,6 +163,8 @@ class EPOC(object):
         self.decryption = None
         self.decryption_key = None
         self.headset_on = False
+        self.battery = 0
+        self.counter = 0
 
         # Access method can be 'direct' or 'libusb' (Default: libusb)
         self.method = method
@@ -314,15 +316,27 @@ class EPOC(object):
         """Returns an array of EEG samples."""
         try:
             raw_data = self._cipher.decrypt(self.endpoint.read(32))
-            if ord(raw_data[0]) < 128:
-                # Normal data
+            # Parse counter
+            ctr = ord(raw_data[0])
+            # Parse gyro's
+            self.gyroX = ((ord(raw_data[29]) << 4) | (ord(raw_data[31]) >> 4))
+            self.gyroY = ((ord(raw_data[30]) << 4) | (ord(raw_data[31]) & 0x0F))
+            if ctr < 128:
+                self.counter = ctr
+                # Contact qualities
+                self.quality[self.cq_order[ctr]] = utils.get_level(raw_data, self.bit_indexes["QU"]) / 540.0
+                # Finally EEG data
                 return [utils.get_level(raw_data, self.bit_indexes[n]) \
                         for n in self.channel_mask]
             else:
-                # Battery & Contact Quality
+                # Set a synthetic counter for this special packet: 128
+                self.counter = 128
+                # Parse battery level
+                self.battery = self.battery_levels[ctr]
                 return []
         except usb.USBError as usb_exception:
             if usb_exception.errno == 110:
+                self.headset_on = False
                 raise EPOCTurnedOffError(
                         "Make sure that headset is turned on")
             else:
@@ -388,15 +402,31 @@ class EPOC(object):
 
 def main():
     """Test function for EPOC class."""
-    epoc = EPOC()
+    e = EPOC()
 
-    duration = 4
-    epoc.set_channel_mask(["O1", "O2"])
+    while 1:
+        try:
+            data = e.get_sample()
+            # data is [] for each battery packet, e.g. ctr > 127
+            if data:
+                # Clear screen
+                print("\x1b[2J\x1b[H")
+                header = "Emotiv Data Packet [%3d/128] [Loss: N/A] [Battery: %2d(%%)]" % (
+                    e.counter, e.battery)
+                print("%s\n%s" % (header, '-'*len(header)))
 
-    eeg = epoc.acquire_data(duration)
-    epoc.save_as_matlab(eeg, "sample-eeg-%s" % duration)
+                print("%10s: %5d" % ("Gyro(x)", e.gyroX))
+                print("%10s: %5d" % ("Gyro(y)", e.gyroY))
 
-    print "Packets dropped: %d" % utils.check_packet_drops(eeg[0, :])
+                for i,channel in enumerate(e.channel_mask):
+                    print("%10s: %5d %20s: %5d (%.2f)" % (channel, data[i],
+                                                   "Quality", e.quality[channel],
+                                                   e.quality[channel]/540.))
+        except EPOCTurnedOffError, ete:
+            print ete
+        except KeyboardInterrupt, ki:
+            e.disconnect()
+            return 0
 
 if __name__ == "__main__":
     import sys
