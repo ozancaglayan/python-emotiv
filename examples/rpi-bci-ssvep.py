@@ -56,7 +56,7 @@ def blinkLed(pin, frequency):
 def main():
 
     # Setup headset
-    headset = epoc.EPOC(method="hidraw")
+    headset = epoc.EPOC(method="direct")
     headset.set_channel_mask(["O1", "O2"])
 
     # Setup pins

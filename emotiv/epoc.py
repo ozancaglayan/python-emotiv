@@ -164,7 +164,7 @@ class EPOC(object):
         self.decryption_key = None
         self.headset_on = False
 
-        # Access method can be 'hidraw' or 'libusb' (Default: libusb)
+        # Access method can be 'direct' or 'libusb' (Default: libusb)
         self.method = method
 
         # If dummy is given the class behaves as a random signal generator
@@ -254,7 +254,7 @@ class EPOC(object):
                 self.device = dev
                 self.endpoint = usb.util.find_descriptor(
                     interface, bEndpointAddress=usb.ENDPOINT_IN | 2)
-            elif self.method == "hidraw":
+            elif self.method == "direct":
                 if os.path.exists("/dev/emotiv_epoc"):
                     self.endpoint = open("/dev/emotiv_epoc")
                 else:
@@ -388,7 +388,7 @@ class EPOC(object):
 
 def main():
     """Test function for EPOC class."""
-    epoc = EPOC(method="hidraw")
+    epoc = EPOC()
 
     duration = 4
     epoc.set_channel_mask(["O1", "O2"])

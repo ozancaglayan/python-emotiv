@@ -10,7 +10,7 @@ except ImportError:
 
 if __name__ == '__main__':
 
-    headset = epoc.EPOC(method="hidraw")
+    headset = epoc.EPOC()
     print "Found headset: ", headset.serial_number
 
     info = pylsl.stream_info('EPOC', 'EEG', len(headset.channel_mask),
