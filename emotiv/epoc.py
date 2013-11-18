@@ -157,14 +157,14 @@ class EPOC(object):
         'QU': [99,100,101,102,103,104,105,106,107,108,109,110,111,112],
     }
 
-    def __init__(self, method, dummy=False, serial_number=None):
+    def __init__(self, method="libusb", dummy=False, serial_number=None):
         self.vendor_id = None
         self.product_id = None
         self.decryption = None
         self.decryption_key = None
         self.headset_on = False
 
-        # Access method can be 'hidraw' or 'libusb'
+        # Access method can be 'hidraw' or 'libusb' (Default: libusb)
         self.method = method
 
         # If dummy is given the class behaves as a random signal generator
