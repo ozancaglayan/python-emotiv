@@ -31,17 +31,13 @@ Installation
 
 Just run ```python setup.py install``` to install the module on your system.
 
-Screenshot
+Data Logger
 ==========
 
-When you run utils/datalogger.py, it will update what it gets from your headset
-and output the data once in a second on your terminal:
+When you run emotiv/epoc.py as a standalone application, it will dump sensor data
+to the terminal:
 
 ![Terminal screenshot](https://raw.github.com/ozancaglayan/python-emotiv/master/doc/sc_console.png)
-
-Note that the datalogger is outdated and does not use the latest EPOC class from this repository.
-I will port it to the new interface as soon as it's possible.
-
 
 Authors
 =======
