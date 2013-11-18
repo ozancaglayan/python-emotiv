@@ -17,12 +17,9 @@
 ## along with this program; if not, write to the Free Software
 ## Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-from Crypto.Cipher import AES
 import epoc, utils
 
-def decryptionProcess(aes_key, input_queue, output_queue, channel_mask, sync=False):
-    # Setup decryption cipher
-    cipher = AES.new(aes_key)
+def decryptionProcess(cipher, input_queue, output_queue, channel_mask, sync=False):
     while 1:
         raw_data = cipher.decrypt(input_queue.get())
         eeg = [utils.get_level(raw_data, EPOC.bit_indexes[bit_mask]) \

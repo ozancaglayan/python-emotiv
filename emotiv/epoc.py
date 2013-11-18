@@ -304,7 +304,7 @@ class EPOC(object):
     def set_external_decryption(self):
         """Use another process for concurrent decryption."""
         self.decryption = Process(target=decryptionProcess,
-                                  args=[self.decryption_key,
+                                  args=[self._cipher,
                                         self.input_queue,
                                         self.output_queue, False])
         self.decryption.daemon = True
