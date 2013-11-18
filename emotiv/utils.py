@@ -25,3 +25,14 @@ def check_packet_drops(seq_numbers):
         if ((cur + 1) % 128) != _next:
             lost.append((cur + 1) % 128)
     return lost
+
+def get_level(raw_data, bits):
+    """Returns signal level from raw_data frame."""
+    level = 0
+    for i in range(13, -1, -1):
+        level <<= 1
+        b, o = (bits[i] / 8) + 1, bits[i] % 8
+        level |= (ord(raw_data[b]) >> o) & 1
+    return level
+
+
