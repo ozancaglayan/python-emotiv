@@ -204,12 +204,9 @@ class EPOC(object):
             manu = usb.util.get_string(device, len(self.MANUFACTURER_DESC),
                                        device.iManufacturer)
         except usb.core.USBError, usb_exception:
-            # Skip failing devices as it happens on Raspberry Pi
-            if usb_exception.errno == 32:
-                return False
-            elif usb_exception.errno == 13:
-                print usb_exception
-                raise EPOCPermissionError("Problem with device permissions.")
+            # If the udev rule is installed, we shouldn't get an exception
+            # for Emotiv device.
+            return False
         else:
             if manu == self.MANUFACTURER_DESC:
                 # Found a dongle, check for interface class 3
@@ -247,12 +244,12 @@ class EPOC(object):
             self.product_id = "%X" % dev.idProduct
 
             if self.method == "libusb":
-                # 2nd interface is the one we need
-                interface = dev.get_active_configuration()[1]
-                if dev.is_kernel_driver_active(interface.bInterfaceNumber):
-                    # Detach kernel drivers and claim through libusb
-                    dev.detach_kernel_driver(interface.bInterfaceNumber)
-                    usb.util.claim_interface(dev, interface.bInterfaceNumber)
+                # Last interface is the one we need
+                for interface in dev.get_active_configuration():
+                    if dev.is_kernel_driver_active(interface.bInterfaceNumber):
+                        # Detach kernel drivers and claim through libusb
+                        dev.detach_kernel_driver(interface.bInterfaceNumber)
+                        usb.util.claim_interface(dev, interface.bInterfaceNumber)
 
                 self.device = dev
                 self.endpoint = usb.util.find_descriptor(
@@ -268,7 +265,15 @@ class EPOC(object):
             break
 
         self.setup_encryption()
-        self.endpoint.read(32)
+        # Attempt to see whether the headset is turned on
+        try:
+            self.endpoint.read(32, 100)
+        except usb.USBError as ue:
+            if ue.errno == 110:
+                self.headset_on = False
+                print "Setup is OK but make sure that headset is turned on."
+        else:
+            self.headset_on = True
 
     def setup_encryption(self, research=True):
         """Generate the encryption key and setup Crypto module.
