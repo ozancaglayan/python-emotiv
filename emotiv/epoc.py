@@ -24,7 +24,6 @@ EEG headsets.
 
 import os
 
-from multiprocessing import Process, JoinableQueue
 from Crypto.Cipher import AES
 
 import usb.core
@@ -35,7 +34,6 @@ import numpy as np
 from scipy.io import savemat
 
 import utils
-from decryptor import decryptionProcess
 
 
 class EPOCError(Exception):
@@ -193,10 +191,6 @@ class EPOC(object):
         # Update __dict__ with convenience attributes for channels
         self.__dict__.update(dict((v, k) for k, v in enumerate(self.channels)))
 
-        # Queues
-        self.input_queue = JoinableQueue()
-        self.output_queue = JoinableQueue()
-
         # Enumerate the bus to find EPOC devices
         self.enumerate()
 
@@ -326,8 +320,7 @@ class EPOC(object):
                 # Contact qualities
                 self.quality[self.cq_order[ctr]] = utils.get_level(raw_data, self.bit_indexes["QU"]) / 540.0
                 # Finally EEG data
-                return [utils.get_level(raw_data, self.bit_indexes[n]) \
-                        for n in self.channel_mask]
+                return [utils.get_level(raw_data, self.bit_indexes[n]) for n in self.channel_mask]
             else:
                 # Set a synthetic counter for this special packet: 128
                 self.counter = 128
@@ -347,31 +340,17 @@ class EPOC(object):
         """Acquire data from the EPOC headset."""
 
         total_samples = duration * self.sampling_rate
-        while self.output_queue.qsize() != total_samples:
+        _buffer = np.ndarray((total_samples, len(self.channel_mask) + 1))
+        ctr = 0
+        while ctr < total_samples:
             # Fetch new data
-            try:
-                self.input_queue.put(self.endpoint.read(32))
-            except usb.USBError as usb_exception:
-                if usb_exception.errno == 110:
-                    raise EPOCTurnedOffError(
-                        "Make sure that headset is turned on")
-                else:
-                    raise EPOCUSBError("USB I/O error with errno = %d" %
-                                       usb_exception.errno)
+            data = self.get_sample()
+            if data:
+                # Prepend sequence numbers
+                _buffer[ctr] = np.insert(np.array(data), 0, self.counter)
+                ctr += 1
 
-        # Process and return the final data
-        self.output_queue.join()
-
-        # +1 for sequence numbers
-        _buffer = np.zeros((len(self.channel_mask)+1, self.output_queue.qsize()))
-        for spl in xrange(self.output_queue.qsize()):
-            bits = self.output_queue.get()
-            _buffer[0, spl] = bits[self.slices["SEQ#"]].uint
-            for index, ch_name in enumerate(self.channel_mask):
-                # ch_name's are strings like "O1", "O2", etc.
-                _buffer[index + 1, spl] = bits[self.slices[ch_name]].uint
-
-        return _buffer
+        return _buffer.T
 
     def save_as_matlab(self, _buffer, filename, metadata=None):
         """Save acquired data as matlab file."""
