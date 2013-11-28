@@ -22,68 +22,91 @@ import os
 import sys
 import time
 import signal
+import atexit
 
 import Adafruit_BBIO.GPIO as GPIO
 
 PID_FILE = "/var/run/bbb-ssvepd.pid"
 
-PIN_LEFT_ARM  = "P8_9"
-PIN_RIGHT_ARM = "P8_10"
-LED_LEFT = 0
-LED_RIGHT = 0
-ENABLED = False
+# LED informations
+LEDS = {"left"   :  {"pin": "P8_9",   "value": 0, "timer": time.time()},
+        "right"  :  {"pin": "P8_10",  "value": 0, "timer": time.time()},
+       }
+
+ENABLED = 0
+
+def cleanup():
+    try:
+        os.unlink(PID_FILE)
+    except:
+        pass
+    for led in LEDS.values():
+        GPIO.output(led["pin"], 0)
+    GPIO.cleanup()
 
 def sigusr1_handler(signum, stack):
-    print "Received: ", signum
-    ENABLED = not ENABLED
-    LED_LEFT = LED_RIGHT = 0
-    GPIO.output(PIN_LEFT_ARM, 0)
-    GPIO.output(PIN_RIGHT_ARM, 0)
+    global ENABLED
+    ENABLED ^= 1
+    for led, led_info in LEDS.items():
+        led_info["value"] = 0
+        GPIO.output(led_info["pin"], led_info["value"])
+
+    # If stimulation is turned off, block until another SIGUSR1
+    if not ENABLED:
+        signal.pause()
 
 def write_pid_file():
     if os.path.exists(PID_FILE):
         return False
-    open(PID_FILE, "w").write(os.getpid())
+    with open(PID_FILE, "w") as fp:
+        fp.write("%s" % os.getpid())
     return True
 
-def main(f1, f2):
+def toggle_led(which):
+    led = LEDS[which]
+    led["value"] ^= 1
+    GPIO.output(led["pin"], led["value"])
+    led["timer"] = time.time()
+
+def main(freqs):
     if not write_pid_file():
+        print "Failed writing PID file."
         return 1
 
     # Setup pins
-    GPIO.setup(PIN_LEFT_ARM, GPIO.OUT)
-    GPIO.setup(PIN_RIGHT_ARM, GPIO.OUT)
+    for i, led in enumerate(LEDS.values()):
+        GPIO.setup(led["pin"], GPIO.OUT)
+        GPIO.output(led["pin"], led["value"])
+        led["period"] = 1 / (int(freqs[i]) * 2.0)
 
-    # Compute periods
-    p1 = 1 / (f1 * 2.0) # f1 Hz
-    p2 = 1 / (f2 * 2.0) # f2 Hz
+    # 80% of the minimum waiting period between steps
+    min_period = min([led["period"] for led in LEDS.values()]) * 0.8
 
-    # Initial led states are off
-    GPIO.output(PIN_LEFT_ARM, 0)
-    GPIO.output(PIN_RIGHT_ARM, 0)
-
-    # Register SIGUSR1 handler
+    # Register signal handlers
     signal.signal(signal.SIGUSR1, sigusr1_handler)
 
-    while 1:
-        if enabled:
-            GPIO.output(PIN_LEFT_ARM, LED_LEFT)
-            GPIO.output(PIN_RIGHT_ARM, LED_RIGHT)
-        else:
-            signal.pause()
-
-    # Close devices
     try:
-        GPIO.output(PIN_LEFT_ARM, 0)
-        GPIO.output(PIN_RIGHT_ARM, 0)
-        GPIO.cleanup()
-    except e:
-        print e
-    finally:
-        os.unlink(PID_FILE)
+        while 1:
+            if ENABLED:
+                for led, led_info in LEDS.items():
+                    if (time.time() - led_info["timer"]) >= led_info["period"]:
+                        toggle_led(led)
+                # Sleep for min_period for not hogging the CPU
+                time.sleep(min_period)
+    except KeyboardInterrupt, ke:
+        return 2
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print "Usage: %s <freq1> <freq2>" % sys.argv[0]
+    if len(sys.argv) < 2:
+        print "Usage: %s [--start] <freq1> <freq2> ... <freqN>" % sys.argv[0]
+        sys.exit(1)
 
-    sys.exit(main(sys.argv[1], sys.argv[2]))
+    # Start stimulation immediately
+    if sys.argv[1] == "--start":
+        ENABLED = 1
+        sys.argv.remove("--start")
+
+    # Register cleanup handler
+    atexit.register(cleanup)
+
+    sys.exit(main(sys.argv[1:]))
