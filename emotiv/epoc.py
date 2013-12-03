@@ -340,7 +340,8 @@ class EPOC(object):
         """Acquire data from the EPOC headset."""
 
         total_samples = duration * self.sampling_rate
-        _buffer = np.ndarray((total_samples, len(self.channel_mask) + 1))
+        _buffer = np.ndarray((total_samples, len(self.channel_mask) + 1),
+                dtype=np.uint16)
         ctr = 0
         while ctr < total_samples:
             # Fetch new data
@@ -350,7 +351,7 @@ class EPOC(object):
                 _buffer[ctr] = np.insert(np.array(data), 0, self.counter)
                 ctr += 1
 
-        return _buffer.T
+        return _buffer
 
     def save_as_matlab(self, _buffer, filename, metadata=None):
         """Save acquired data as matlab file."""

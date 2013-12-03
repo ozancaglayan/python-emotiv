@@ -26,7 +26,7 @@ import atexit
 
 import Adafruit_BBIO.GPIO as GPIO
 
-PID_FILE = "/var/run/bbb-ssvepd.pid"
+PID_FILE = "/var/run/bbb-bci-ssvepd.pid"
 
 # LED informations
 LEDS = {"left"   :  {"pin": "P8_9",   "value": 0, "timer": time.time()},

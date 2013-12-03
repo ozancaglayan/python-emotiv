@@ -22,8 +22,12 @@ import os
 import sys
 import time
 import signal
+import socket
 
 import numpy as np
+
+SSVEPD_PID = "/var/run/bbb-bci-ssvepd.pid"
+DSPD_SOCK = "/tmp/bbb-bci-dspd.sock"
 
 try:
     from emotiv import epoc, utils
@@ -33,14 +37,23 @@ except ImportError:
 
 def main():
 
-    # Setup headset
-    headset = epoc.EPOC()
-
+    """
     try:
-        ssvepd_pid = int(open("/var/run/bbb-ssvepd.pid", "r").read())
+        ssvepd_pid = int(open(SSVEPD_PID, "r").read())
     except:
         print "SSVEP service is not running."
         return 1
+    """
+
+    try:
+        sock = socket.socket(socket.AF_UNIX)
+        sock.connect(DSPD_SOCK)
+    except:
+        print "Can't connect to DSP block."
+        return 1
+
+    # Setup headset
+    headset = epoc.EPOC()
 
     # Experiment duration
     duration = 4
@@ -49,31 +62,25 @@ def main():
     except:
         pass
 
-    total_samples = duration * headset.sampling_rate
-    ctr = 0
-    _buffer = np.ndarray((total_samples, len(headset.channel_mask) + 1))
+    sock.send(bytes(duration))
 
-    os.kill(ssvepd_pid, signal.SIGUSR1)
-    while ctr < total_samples:
-        # Fetch new data
-        data = headset.get_sample()
-        if data:
-            # Prepend sequence numbers
-            _buffer[ctr] = np.insert(np.array(data), 0, headset.counter)
-            ctr += 1
+    #os.kill(ssvepd_pid, signal.SIGUSR1)
+    for i in range(duration):
+        # Fetch 1 second of data each time
+        data = headset.acquire_data(1)
 
-    os.kill(ssvepd_pid, signal.SIGUSR1)
-    print utils.check_packet_drops(_buffer.T[0].tolist())
+        # Send the data to DSP block
+        sock.sendall(data.tostring())
+
+    #os.kill(ssvepd_pid, signal.SIGUSR1)
+    #print utils.check_packet_drops(_buffer.T[0].tolist())
 
     # Close devices
     try:
         headset.disconnect()
+        sock.close()
     except e:
         print e
-
-    # Finally, save the data as matlab files
-    #headset.save_as_matlab(eeg_ssvep, "eeg-ssvep", experiment)
-    #headset.save_as_matlab(eeg_rest, "eeg-resting", experiment)
 
 if __name__ == "__main__":
     sys.exit(main())
