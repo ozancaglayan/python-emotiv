@@ -155,20 +155,21 @@ class EPOC(object):
         'QU': [99,100,101,102,103,104,105,106,107,108,109,110,111,112],
     }
 
-    def __init__(self, method="libusb", dummy=False, serial_number=None):
+    def __init__(self, method="libusb", serial_number=None, enable_gyro=True):
         self.vendor_id = None
         self.product_id = None
         self.decryption = None
         self.decryption_key = None
         self.headset_on = False
+        self.enable_gyro = enable_gyro
         self.battery = 0
         self.counter = 0
+        self.gyroX = 0
+        self.gyroY = 0
 
-        # Access method can be 'direct' or 'libusb' (Default: libusb)
-        self.method = method
-
+        # Access method can be direct/libusb/dummy (Default: libusb)
         # If dummy is given the class behaves as a random signal generator
-        self.dummy = dummy
+        self.method = method
 
         # One may like to specify the dongle with its serial
         self.serial_number = serial_number
@@ -219,7 +220,7 @@ class EPOC(object):
 
     def enumerate(self):
         """Traverse through USB bus and enumerate EPOC devices."""
-        if self.dummy:
+        if self.method == "dummy":
             self.endpoint = open("/dev/urandom")
             return
 
@@ -312,9 +313,10 @@ class EPOC(object):
             raw_data = self._cipher.decrypt(self.endpoint.read(32))
             # Parse counter
             ctr = ord(raw_data[0])
-            # Parse gyro's
-            self.gyroX = ((ord(raw_data[29]) << 4) | (ord(raw_data[31]) >> 4))
-            self.gyroY = ((ord(raw_data[30]) << 4) | (ord(raw_data[31]) & 0x0F))
+            # Update gyro's if requested
+            if self.enable_gyro:
+                self.gyroX = ((ord(raw_data[29]) << 4) | (ord(raw_data[31]) >> 4))
+                self.gyroY = ((ord(raw_data[30]) << 4) | (ord(raw_data[31]) & 0x0F))
             if ctr < 128:
                 self.counter = ctr
                 # Contact qualities
