@@ -24,6 +24,8 @@ import time
 import signal
 import socket
 
+from emotiv import utils
+
 import numpy as np
 from scipy import signal, fftpack
 
@@ -33,6 +35,8 @@ RECVSIZE = 4096 * 8
 CTR, F3, FC5, AF3, F7, T7, P7, O1, O2, P8, T8, F8, AF4, FC6, F4 = range(15)
 
 def process_eeg(data):
+    print "Lost packets: ", utils.check_packet_drops(data[:, CTR])
+
     ch = signal.detrend(data[:, O2].T)
     time_step = 1/128.0
     sample_freq = fftpack.fftfreq(ch.size, d=time_step)
@@ -41,8 +45,19 @@ def process_eeg(data):
 
     fft = fftpack.fft(ch)
     power = np.abs(fft)[pidxs]
+    max_power_ind = power.argmax()
+    max_args = power.argsort()[::-1][:5]
+    print freqs[max_args], power[max_args]
+    #print "Power\n-----------------------------\n"
+    #print power
+    #print "\n".join("%10s: \t%2.f" % (z[0],z[1]) for z in zip(freqs, power))
 
 def main():
+    try:
+        os.unlink(SOCKET)
+    except:
+        pass
+
     server = socket.socket(socket.AF_UNIX)
     server.bind(SOCKET)
     server.listen(0)
@@ -50,10 +65,11 @@ def main():
     # Blocks to wait a new connection
     client, client_addr = server.accept()
 
-    # Get experiment max duration
-    duration = int(client.recv(1))
+    # Get experiment max duration (4 digits)
+    duration = int(client.recv(4))
 
-    data = np.empty((duration * 128, 15), dtype=np.float64)
+    # Preliminary buffer to accumulate data
+    data = np.empty((duration * 128, 15), dtype=np.uint16)
 
     try:
         for i in range(duration):
@@ -61,11 +77,13 @@ def main():
             raw_bytes = client.recv(RECVSIZE)
 
             # We should receive 1 second of EEG data 128x15 matrix
-            data[i*128:(i+1)*128, :] = np.fromstring(raw_bytes,
-                    dtype=np.uint16).reshape((128, 15)).astype(np.float64)
+            d = np.fromstring(raw_bytes, dtype=np.uint16).reshape((128, 15))
+            #NOTE: This is for accumulating
+            #data[i*128:(i+1)*128, :] = d
 
             # Process data
-            process_eeg(data[:(i+1)*128, :])
+            #process_eeg(data[:(i+1)*128, :])
+            process_eeg(d)
 
     except Exception, e:
         print e
