@@ -37,13 +37,11 @@ except ImportError:
 
 def main():
 
-    """
     try:
         ssvepd_pid = int(open(SSVEPD_PID, "r").read())
     except:
         print "SSVEP service is not running."
         return 1
-    """
 
     try:
         sock = socket.socket(socket.AF_UNIX)
@@ -62,9 +60,10 @@ def main():
     except:
         pass
 
-    sock.send(bytes(duration))
+    # Send 4 bytes of data for duration
+    sock.send("%4d" % duration)
 
-    #os.kill(ssvepd_pid, signal.SIGUSR1)
+    os.kill(ssvepd_pid, signal.SIGUSR1)
     for i in range(duration):
         # Fetch 1 second of data each time
         data = headset.acquire_data(1)
@@ -72,8 +71,7 @@ def main():
         # Send the data to DSP block
         sock.sendall(data.tostring())
 
-    #os.kill(ssvepd_pid, signal.SIGUSR1)
-    #print utils.check_packet_drops(_buffer.T[0].tolist())
+    os.kill(ssvepd_pid, signal.SIGUSR1)
 
     # Close devices
     try:
