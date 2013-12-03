@@ -51,7 +51,7 @@ def main():
         return 1
 
     # Setup headset
-    headset = epoc.EPOC()
+    headset = epoc.EPOC(enable_gyro=False)
 
     # Experiment duration
     duration = 4
