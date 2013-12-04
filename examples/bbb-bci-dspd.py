@@ -32,8 +32,6 @@ from scipy import signal, fftpack
 SOCKET = "/tmp/bbb-bci-dspd.sock"
 RECVSIZE = 4096 * 8
 
-CTR, F3, FC5, AF3, F7, T7, P7, O1, O2, P8, T8, F8, AF4, FC6, F4 = range(15)
-
 def process_eeg(data):
     print "Lost packets: ", utils.check_packet_drops(data[:, CTR])
 
@@ -68,8 +66,15 @@ def main():
     # Get experiment max duration (4 digits)
     duration = int(client.recv(4))
 
+    # Get comma separated channel configuration (48 bytes)
+    # Expose them as global variables to use them as int indices
+    channel_conf = client.recv(48)
+    for i, ch in enumerate(channel_conf.strip().split(",")):
+        globals()[ch] = i
+    n_channels = i + 1
+
     # Preliminary buffer to accumulate data
-    data = np.empty((duration * 128, 15), dtype=np.uint16)
+    data = np.empty((duration * 128, n_channels), dtype=np.uint16)
 
     try:
         for i in range(duration):
@@ -77,7 +82,7 @@ def main():
             raw_bytes = client.recv(RECVSIZE)
 
             # We should receive 1 second of EEG data 128x15 matrix
-            d = np.fromstring(raw_bytes, dtype=np.uint16).reshape((128, 15))
+            d = np.fromstring(raw_bytes, dtype=np.uint16).reshape((128, n_channels))
             #NOTE: This is for accumulating
             #data[i*128:(i+1)*128, :] = d
 
