@@ -222,6 +222,7 @@ class EPOC(object):
         """Traverse through USB bus and enumerate EPOC devices."""
         if self.method == "dummy":
             self.endpoint = open("/dev/urandom")
+            self.get_sample = self.__get_sample_dummy
             return
 
         devices = usb.core.find(find_all=True, custom_match=self._is_epoc)
@@ -306,6 +307,11 @@ class EPOC(object):
                                         self.output_queue, False])
         self.decryption.daemon = True
         self.decryption.start()
+
+    def __get_sample_dummy(self):
+        """Read random dummy samples."""
+        raw_data = self.endpoint.read(32)
+        return [utils.get_level(raw_data, self.bit_indexes[n]) for n in self.channel_mask]
 
     def get_sample(self):
         """Returns an array of EEG samples."""
