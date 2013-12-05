@@ -71,6 +71,8 @@ def main():
         globals()[ch] = i
     n_channels = i + 1
 
+    globals()["channel_mask"] = channel_conf.strip().split(",")[1:]
+
     # Preliminary buffer to accumulate data
     data = np.empty((duration * 128, n_channels), dtype=np.uint16)
 
@@ -81,8 +83,9 @@ def main():
 
             # We should receive 1 second of EEG data 128x15 matrix
             d = np.fromstring(raw_bytes, dtype=np.uint16).reshape((128, n_channels))
-            #NOTE: This is for accumulating
-            #data[i*128:(i+1)*128, :] = d
+
+            # This is for accumulating
+            data[i * 128:(i+1) * 128, :] = d
 
             # Process data
             #process_eeg(data[:(i+1)*128, :])
@@ -96,6 +99,8 @@ def main():
         # TODO: client.send(...)
         server.close()
         os.unlink(SOCKET)
+        utils.save_as_matlab(data, channel_mask, "eeg-ssvep.mat")
+        print "Total packet lost: %d/%d" % (len(utils.check_packet_drops(data[:, CTR])), data[:, CTR].size)
 
 if __name__ == "__main__":
     sys.exit(main())
