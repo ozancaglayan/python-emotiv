@@ -20,8 +20,6 @@
 
 import os
 import sys
-import time
-import signal
 import socket
 
 from emotiv import utils
@@ -66,9 +64,9 @@ def main():
     # Get experiment max duration (4 digits)
     duration = int(client.recv(4))
 
-    # Get comma separated channel configuration (48 bytes)
+    # Get comma separated channel configuration (49 bytes max)
     # Expose them as global variables to use them as int indices
-    channel_conf = client.recv(48)
+    channel_conf = client.recv(49)
     for i, ch in enumerate(channel_conf.strip().split(",")):
         globals()[ch] = i
     n_channels = i + 1

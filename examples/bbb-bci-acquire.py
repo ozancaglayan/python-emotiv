@@ -52,6 +52,7 @@ def main():
 
     # Setup headset
     headset = epoc.EPOC(enable_gyro=False)
+    headset.set_channel_mask(["O1", "O2", "P7", "P8"])
 
     # Experiment duration
     duration = 4
@@ -63,9 +64,9 @@ def main():
     # Send 4 bytes of data for duration
     sock.send("%4d" % duration)
 
-    # Send comma separated list of enabled channels (48 bytes)
+    # Send comma separated list of enabled channels (49 bytes max.)
     channel_conf = "CTR," + ",".join(headset.channel_mask)
-    sock.send("%48s" % channel_conf)
+    sock.send("%49s" % channel_conf)
 
     os.kill(ssvepd_pid, signal.SIGUSR1)
     for i in range(duration):
