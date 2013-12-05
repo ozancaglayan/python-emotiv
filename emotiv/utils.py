@@ -17,6 +17,8 @@
 ## along with this program; if not, write to the Free Software
 ## Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+from scipy.io import savemat
+
 def check_packet_drops(seq_numbers):
     lost = []
     for seq in xrange(len(seq_numbers) - 1):
@@ -34,5 +36,20 @@ def get_level(raw_data, bits):
         b, o = (bits[i] / 8) + 1, bits[i] % 8
         level |= (ord(raw_data[b]) >> o) & 1
     return level
+
+def save_as_matlab(_buffer, channel_mask, filename, metadata=None):
+    """Save as matlab data with optional metadata."""
+    matlab_data = {"CTR": _buffer[:, 0]}
+
+    if not filename.endswith(".mat"):
+        filename = "%s.mat" % filename
+
+    # Inject metadata
+    if metadata:
+        for key, value in metadata.items():
+            matlab_data[key] = value
+    for index, ch_name in enumerate(channel_mask):
+        matlab_data[ch_name] = _buffer[:, index + 1]
+        savemat(filename, matlab_data, oned_as='row')
 
 
