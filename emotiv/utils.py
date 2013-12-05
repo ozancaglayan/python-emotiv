@@ -18,6 +18,7 @@
 ## Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 from scipy.io import savemat
+import numpy as np
 
 def check_packet_drops(seq_numbers):
     lost = []
@@ -49,7 +50,7 @@ def save_as_matlab(_buffer, channel_mask, filename, metadata=None):
         for key, value in metadata.items():
             matlab_data[key] = value
     for index, ch_name in enumerate(channel_mask):
-        matlab_data[ch_name] = _buffer[:, index + 1]
+        matlab_data[ch_name] = _buffer[:, index + 1].astype(np.float64)
         savemat(filename, matlab_data, oned_as='row')
 
 
