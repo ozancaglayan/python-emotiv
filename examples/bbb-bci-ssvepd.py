@@ -29,9 +29,10 @@ import Adafruit_BBIO.GPIO as GPIO
 PID_FILE = "/var/run/bbb-bci-ssvepd.pid"
 
 # LED informations
-LEDS = {"left"   :  {"pin": "P8_9",   "value": 0, "timer": time.time()},
-        "right"  :  {"pin": "P8_10",  "value": 0, "timer": time.time()},
-       }
+LEDS = [["P8_9",  0, time.time(), 0, 0],
+        ["P8_10", 0, time.time(), 0, 0],
+       ]
+PIN, VALUE, TIMER, PERIOD, HZ = range(5)
 
 ENABLED = 0
 
@@ -40,16 +41,16 @@ def cleanup():
         os.unlink(PID_FILE)
     except:
         pass
-    for led in LEDS.values():
-        GPIO.output(led["pin"], 0)
+    for led in LEDS:
+        GPIO.output(led[PIN], 0)
     GPIO.cleanup()
 
 def sigusr1_handler(signum, stack):
     global ENABLED
     ENABLED ^= 1
-    for led, led_info in LEDS.items():
-        led_info["value"] = 0
-        GPIO.output(led_info["pin"], led_info["value"])
+    for led in LEDS:
+        led[VALUE] = 0
+        GPIO.output(led[PIN], led[VALUE])
 
     # If stimulation is turned off, block until another SIGUSR1
     if not ENABLED:
@@ -62,39 +63,39 @@ def write_pid_file():
         fp.write("%s" % os.getpid())
     return True
 
-def toggle_led(which):
-    led = LEDS[which]
-    led["value"] ^= 1
-    GPIO.output(led["pin"], led["value"])
-    led["timer"] = time.time()
-
 def main(freqs):
     if not write_pid_file():
         print "Failed writing PID file."
         return 1
 
     # Setup pins
-    for i, led in enumerate(LEDS.values()):
-        GPIO.setup(led["pin"], GPIO.OUT)
-        GPIO.output(led["pin"], led["value"])
-        led["period"] = 1 / (int(freqs[i]) * 2.0)
-
-    # 80% of the minimum waiting period between steps
-    min_period = min([led["period"] for led in LEDS.values()]) * 0.8
+    for led in LEDS:
+        GPIO.setup(led[PIN], GPIO.OUT)
+        GPIO.output(led[PIN], led[VALUE])
+        led[HZ] = int(freqs.pop(0))
+        led[PERIOD] = 1 / (led[HZ] * 2.0)
 
     # Register signal handlers
     signal.signal(signal.SIGUSR1, sigusr1_handler)
 
+    log = ""
+
+    if not ENABLED:
+        signal.pause()
+
     try:
         while 1:
-            if ENABLED:
-                for led, led_info in LEDS.items():
-                    if (time.time() - led_info["timer"]) >= led_info["period"]:
-                        toggle_led(led)
-                # Sleep for min_period for not hogging the CPU
-                time.sleep(min_period)
+            for led in LEDS:
+                if (time.time() - led[TIMER]) >= led[PERIOD]:
+                    # Toggle led
+                    GPIO.output(led[PIN], led[VALUE] ^ 1)
+                    led[TIMER] = time.time()
+                    led[VALUE] ^= 1
+                    #log += "%dHz\t%.4f\n" % (led[HZ], led[TIMER])
     except KeyboardInterrupt, ke:
         return 2
+    finally:
+        open("timing.txt", "w").write(log)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
