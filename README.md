@@ -24,7 +24,7 @@ Dependencies
 * numpy
 * scipy
 * matplotlib (For data analysis scripts under utils/)
-* RPi GPIO (For SSVEP BCI in examples/)
+* BeagleBone Black GPIO (For SSVEP BCI in examples/)
 
 Installation
 ============
