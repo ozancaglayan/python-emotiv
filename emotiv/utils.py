@@ -45,12 +45,27 @@ def save_as_matlab(_buffer, channel_mask, filename, metadata=None):
     if not filename.endswith(".mat"):
         filename = "%s.mat" % filename
 
-    # Inject metadata
+    nr_samples = _buffer[:, 0].size
+    trial = np.zeros((1,), dtype=np.object)
+    trial[0] = _buffer[:, 1:].astype(np.float64).T
+    time = np.zeros((1,), dtype=np.object)
+    time[0] = np.linspace(0, nr_samples/128, nr_samples)
+
+    # save raw data as well
+    matlab_data["raw"] = trial[0]
+
+    # This structure can be read by fieldtrip functions directly
+    fieldtrip_data = {"fsample"     : 128,
+                      "label"       : np.array(channel_mask, dtype=np.object).reshape((len(channel_mask), 1)),
+                      "trial"       : trial,
+                      "time"        : time,
+                      "sampleinfo"  : np.array([1, nr_samples])}
+
+    matlab_data["data"] = fieldtrip_data
+
+    # Inject metadata if any
     if metadata:
         for key, value in metadata.items():
             matlab_data[key] = value
-    for index, ch_name in enumerate(channel_mask):
-        matlab_data[ch_name] = _buffer[:, index + 1].astype(np.float64)
-        savemat(filename, matlab_data, oned_as='row')
 
-
+    savemat(filename, matlab_data, oned_as='row')
