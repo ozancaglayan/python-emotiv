@@ -48,7 +48,7 @@ def save_as_matlab(_buffer, channel_mask, filename=None, metadata=None):
     trial = np.zeros((1,), dtype=np.object)
     trial[0] = _buffer[:, 1:].astype(np.float64).T
     time = np.zeros((1,), dtype=np.object)
-    time[0] = np.linspace(0, nr_samples/128, nr_samples)
+    time[0] = np.array(range(nr_samples)) / 128.0
 
     # save raw data as well
     matlab_data["raw"] = trial[0]
