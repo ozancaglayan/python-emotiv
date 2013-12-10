@@ -35,6 +35,12 @@ except ImportError:
     sys.path.insert(0, "..")
     from emotiv import epoc, utils
 
+def get_subject_information():
+    initials = raw_input("Initials: ")
+    age = raw_input("Age: ")
+    sex = raw_input("Sex (M)ale / (F)emale: ")
+    return ",".join([initials[:2], age[:2], sex[0]])
+
 def main():
 
     try:
@@ -60,6 +66,9 @@ def main():
         duration = int(sys.argv[1])
     except:
         pass
+
+    # Experiment data (7 bytes)
+    experiment = get_subject_information()
 
     # Send 4 bytes of data for duration
     sock.send("%4d" % duration)

@@ -61,6 +61,10 @@ def main():
     # Blocks to wait a new connection
     client, client_addr = server.accept()
 
+    # Get experiment metadata (7 bytes)
+    experiment = client.recv(7)
+    metadata = dict((k,v) for k,v in zip(["Initials", "Age", "Sex"], experiment.split(",")))
+
     # Get experiment max duration (4 digits)
     duration = int(client.recv(4))
 
@@ -99,7 +103,7 @@ def main():
         # TODO: client.send(...)
         server.close()
         os.unlink(SOCKET)
-        utils.save_as_matlab(data, channel_mask, "eeg-ssvep.mat")
+        utils.save_as_matlab(data, channel_mask, "eeg-ssvep.mat", metadata)
         print "Total packet lost: %d/%d" % (len(utils.check_packet_drops(data[:, CTR])), data[:, CTR].size)
 
 if __name__ == "__main__":
