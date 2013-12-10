@@ -69,6 +69,7 @@ def main():
 
     # Experiment data (7 bytes)
     experiment = get_subject_information()
+    sock.send("%7s" % experiment)
 
     # Send 4 bytes of data for duration
     sock.send("%4d" % duration)

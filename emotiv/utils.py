@@ -47,8 +47,8 @@ def save_as_matlab(_buffer, channel_mask, filename=None, metadata=None):
     nr_samples = _buffer[:, 0].size
     trial = np.zeros((1,), dtype=np.object)
     trial[0] = _buffer[:, 1:].astype(np.float64).T
-    time = np.zeros((1,), dtype=np.object)
-    time[0] = np.array(range(nr_samples)) / 128.0
+    trial_time = np.zeros((1,), dtype=np.object)
+    trial_time[0] = np.array(range(nr_samples)) / 128.0
 
     # save raw data as well
     matlab_data["raw"] = trial[0]
@@ -57,7 +57,7 @@ def save_as_matlab(_buffer, channel_mask, filename=None, metadata=None):
     fieldtrip_data = {"fsample"     : 128,
                       "label"       : np.array(channel_mask, dtype=np.object).reshape((len(channel_mask), 1)),
                       "trial"       : trial,
-                      "time"        : time,
+                      "time"        : trial_time,
                       "sampleinfo"  : np.array([1, nr_samples])}
 
     matlab_data["data"] = fieldtrip_data
