@@ -26,13 +26,32 @@ Dependencies
 * matplotlib (For data analysis scripts under utils/)
 * BeagleBone Black GPIO (For SSVEP BCI in examples/)
 
+[labstreaminglayer](https://code.google.com/p/labstreaminglayer)
+================================================================
+
+"labstreaminglayer is a system for the unified collection of measurement time series
+in research experiments and handles both the networking, time-synchronization,
+(near-) real-time access as well as optionally the centralized collection,
+viewing and disk recording of the data."
+
+python-emotiv has preliminary support in lsl/ folder to stream Emotiv EEG signals to
+labstreaminglayer nodes.
+
+Saving your data
+================
+
+utils.py contains a save_as_matlab() function to export the acquired signals
+as a MATLAB file. This function saves the EEG data according to the
+[FieldTrip](http://fieldtrip.fcdonders.nl)
+specification to ease the process of analysing signals with FieldTrip.
+
 Installation
 ============
 
 Just run ```python setup.py install``` to install the module on your system.
 
-Data Logger
-==========
+Testing
+=======
 
 When you run emotiv/epoc.py as a standalone application, it will dump sensor data
 to the terminal:
