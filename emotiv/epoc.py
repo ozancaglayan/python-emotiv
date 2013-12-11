@@ -386,15 +386,13 @@ def main():
                 print("\x1b[2J\x1b[H")
                 header = "Emotiv Data Packet [%3d/128] [Loss: N/A] [Battery: %2d(%%)]" % (
                     e.counter, e.battery)
-                print("%s\n%s" % (header, '-'*len(header)))
+                print "%s\n%s" % (header, '-'*len(header))
 
-                print("%10s: %5d" % ("Gyro(x)", e.gyroX))
-                print("%10s: %5d" % ("Gyro(y)", e.gyroY))
+                print "%10s: %5d" % ("Gyro(x)", e.gyroX)
+                print "%10s: %5d" % ("Gyro(y)", e.gyroY)
 
                 for i,channel in enumerate(e.channel_mask):
-                    print("%10s: %5d %20s: %5d (%.2f)" % (channel, data[i],
-                                                   "Quality", e.quality[channel],
-                                                   e.quality[channel]/540.))
+                    print "%10s: %5d %20s: %.2f" % (channel, data[i], "Quality", e.quality[channel])
         except EPOCTurnedOffError, ete:
             print ete
         except KeyboardInterrupt, ki:
