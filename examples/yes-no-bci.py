@@ -20,9 +20,13 @@
 
 import os
 import sys
+import time
 import signal
+import random
 import socket
 import subprocess
+
+from espeak import espeak
 
 DSPD_SOCK = "/tmp/bbb-bci-dspd.sock"
 DATA_DIR = os.path.expanduser("~/BCIData")
@@ -40,6 +44,27 @@ def get_subject_information():
     return ",".join([initials[:2], age[:2], sex[0]])
 
 def main(argv):
+    local_time = time.localtime()
+    questions = [("Şu anda ağlıyor musun?",                  "n"),
+                 ("Kış mevsiminde miyiz?",           "n"),
+                 ("Türkiye'nin baskenti Bursa mı?",  "n"),
+                 ("İstanbul'da 2 köprü mü var?",     "y"),
+                 ("Şu an Ortaköy'de misin?",         "y"),
+                 ("Hava karanlık mı?",               "y" if local_time.tm_hour >= 17 else "n"),
+                 ("Kafanda kask var mı?",            "y")]
+
+    # Shuffle questions
+    random.shuffle(questions)
+
+    # Set TTS parameters
+    espeak.set_voice("tr")
+    espeak.set_parameter(espeak.Parameter.Pitch, 60)
+    espeak.set_parameter(espeak.Parameter.Rate, 150)
+    espeak.set_parameter(espeak.Parameter.Range, 600)
+
+    # Set niceness of this process
+    os.nice(-15)
+
     # Create DATA_DIR if not available
     try:
         os.makedirs(DATA_DIR)
@@ -66,15 +91,21 @@ def main(argv):
         ssvepd = subprocess.Popen(["./bbb-bci-ssvepd.py", freq1, freq2])
         dspd = subprocess.Popen(["./bbb-bci-dspd.py"])
     except OSError, e:
-        print "Error: Can't launch SSVEP/DSP subprocesses."
+        print "Error: Can't launch SSVEP/DSP subprocesses: %s" % e
         sys.exit(2)
 
     # Open socket to DSP process
-    try:
-        sock = socket.socket(socket.AF_UNIX)
-        sock.connect(DSPD_SOCK)
-    except:
-        print "Can't connect to DSP block."
+    sock = socket.socket(socket.AF_UNIX)
+    sock_connected = False
+    for i in range(10):
+        try:
+            sock.connect(DSPD_SOCK)
+            sock_connected = True
+        except:
+            time.sleep(0.5)
+
+    if not sock_connected:
+        print "Can't connect to DSP socket."
         ssvepd.terminate()
         ssvepd.wait()
         dspd.terminate()
@@ -83,11 +114,12 @@ def main(argv):
 
     # Setup headset
     headset = epoc.EPOC(enable_gyro=False)
-    headset.set_channel_mask(["O1", "O2", "P7", "P8"])
+    channel_mask = ["O1", "O2", "P7", "P8"]
+    headset.set_channel_mask(channel_mask)
 
     # Experiment data (7 bytes)
-    nb_trials = 10
-    experiment = get_subject_information()
+    nb_trials = 3
+    experiment = "OO,27,F" #get_subject_information()
     sock.send("%7s" % experiment)
 
     # Send 4 bytes of data for duration
@@ -97,24 +129,38 @@ def main(argv):
     channel_conf = "CTR," + ",".join(headset.channel_mask)
     sock.send("%49s" % channel_conf)
 
+    #
+    rest_eegs = []
+    ssvep_eegs = []
+
     # Repeat nb_trials time
     for i in range(nb_trials):
         # Acquire resting data
-        rest_eeg = headset.acquire_data(4)
+        rest_eegs.append(headset.acquire_data(4))
 
-        # TODO: Ask a question maybe?
+        # Ask a question
+        espeak.synth(questions[i][0])
+
+        while espeak.is_playing():
+            time.sleep(0.2)
+
+        time.sleep(1)
 
         # Start flickering
         ssvepd.send_signal(signal.SIGUSR1)
 
         # Acquire EEG data for duration seconds
-        ssvep_eeg = headset.acquire_data(duration)
+        ssvep_eegs.append(headset.acquire_data(duration))
 
         # Stop flickering
         ssvepd.send_signal(signal.SIGUSR1)
 
         # Send the data to DSP block
-        sock.sendall(ssvep_eeg.tostring())
+        #sock.sendall(ssvep_eeg.tostring())
+
+    for i in range(nb_trials):
+        utils.save_as_matlab(rest_eegs[i], channel_mask, prefix="trial%d-rest-answer-%s-" % (i, questions[i][1]), folder=DATA_DIR)
+        utils.save_as_matlab(ssvep_eegs[i], channel_mask, prefix="trial%d-ssvep-answer-%s-" % (i, questions[i][1]), folder=DATA_DIR)
 
     # Cleanup
     try:
