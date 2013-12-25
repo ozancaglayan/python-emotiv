@@ -20,6 +20,7 @@
 from scipy.io import savemat
 import numpy as np
 
+import os
 import time
 
 def check_packet_drops(seq_numbers):
@@ -40,7 +41,7 @@ def get_level(raw_data, bits):
         level |= (ord(raw_data[b]) >> o) & 1
     return level
 
-def save_as_matlab(_buffer, channel_mask, filename=None, metadata=None):
+def save_as_matlab(_buffer, channel_mask, folder=None, prefix=None, filename=None, metadata=None):
     """Save as matlab data with optional metadata."""
     matlab_data = {"CTR": _buffer[:, 0]}
 
@@ -54,7 +55,7 @@ def save_as_matlab(_buffer, channel_mask, filename=None, metadata=None):
     matlab_data["raw"] = trial[0]
 
     # This structure can be read by fieldtrip functions directly
-    fieldtrip_data = {"fsample"     : 128,
+    fieldtrip_data = {"fsample"     : 128.0,
                       "label"       : np.array(channel_mask, dtype=np.object).reshape((len(channel_mask), 1)),
                       "trial"       : trial,
                       "time"        : trial_time,
@@ -76,5 +77,10 @@ def save_as_matlab(_buffer, channel_mask, filename=None, metadata=None):
             filename = "emotiv-%s-%s.mat" % (metadata["Initials"], date_info)
         else:
             filename = "emotiv-%s.mat" % date_info
+
+    if prefix:
+        filename = "%s-%s" % (prefix, filename)
+    if folder:
+        filename = os.path.join(folder, filename)
 
     savemat(filename, matlab_data, oned_as='row')
