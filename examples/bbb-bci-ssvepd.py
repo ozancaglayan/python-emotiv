@@ -64,9 +64,9 @@ def write_pid_file():
     return True
 
 def main(freqs):
-    if not write_pid_file():
-        print "Failed writing PID file."
-        return 1
+    #if not write_pid_file():
+    #    print "Failed writing PID file."
+    #    return 1
 
     # Setup pins
     for led in LEDS:
