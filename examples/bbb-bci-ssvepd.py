@@ -22,7 +22,6 @@ import os
 import sys
 import time
 import signal
-import atexit
 
 import Adafruit_BBIO.GPIO as GPIO
 
@@ -35,6 +34,10 @@ LEDS = [["P8_9",  0, time.time(), 0, 0],
 PIN, VALUE, TIMER, PERIOD, HZ = range(5)
 
 ENABLED = 0
+
+def sigterm_handler(signum, stack):
+    cleanup()
+    sys.exit(0)
 
 def cleanup():
     try:
@@ -77,6 +80,7 @@ def main(freqs):
 
     # Register signal handlers
     signal.signal(signal.SIGUSR1, sigusr1_handler)
+    signal.signal(signal.SIGTERM, sigterm_handler)
 
     log = ""
 
@@ -95,7 +99,9 @@ def main(freqs):
     except KeyboardInterrupt, ke:
         return 2
     finally:
-        open("timing.txt", "w").write(log)
+        #open("timing.txt", "w").write(log)
+        cleanup()
+        return 0
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -106,8 +112,5 @@ if __name__ == "__main__":
     if sys.argv[1] == "--start":
         ENABLED = 1
         sys.argv.remove("--start")
-
-    # Register cleanup handler
-    atexit.register(cleanup)
 
     sys.exit(main(sys.argv[1:]))
