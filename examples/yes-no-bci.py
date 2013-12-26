@@ -28,6 +28,9 @@ import subprocess
 
 from espeak import espeak
 
+import numpy as np
+from scipy.io import savemat
+
 DSPD_SOCK = "/tmp/bbb-bci-dspd.sock"
 DATA_DIR = os.path.expanduser("~/BCIData")
 
@@ -41,23 +44,76 @@ def get_subject_information():
     initials = raw_input("Initials: ")
     age = raw_input("Age: ")
     sex = raw_input("Sex (M)ale / (F)emale: ")
-    return ",".join([initials[:2], age[:2], sex[0]])
+    return {
+            "age"       :  age,
+            "sex"       :  sex,
+            "initials"  :  initials,
+           }
+
+def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
+    """Save whole recording as a single dataset."""
+
+    matlab_data = {}
+
+    # len(rest_eegs) == len(ssvep_eegs) == experiment['n_trials']
+    n_trials = experiment['n_trials']
+
+    trial = np.zeros((n_trials,), dtype=np.object)
+    rest = np.zeros((n_trials,), dtype=np.object)
+    trial_time = np.zeros((n_trials,), dtype=np.object)
+
+    for t in range(n_trials):
+        trial[t] = ssvep_eegs[t][:, 1:].astype(np.float64).T
+        rest[t] = rest_eegs[t][:, 1:].astype(np.float64).T
+        trial_time[t] = np.array(range(ssvep_eegs[t][:, 0].size)) / 128.0
+
+    channel_mask = experiment['channel_mask']
+    # This structure can be read by fieldtrip functions directly
+    fieldtrip_data = {"fsample"     : 128.0,
+                      "label"       : np.array(channel_mask, dtype=np.object).reshape((len(channel_mask), 1)),
+                      "trial"       : trial,
+                      "rest"        : rest,
+                      "time"        : trial_time,
+                      #"sampleinfo"  : np.array([1, nr_samples]),
+                     }
+
+    matlab_data["data"] = fieldtrip_data
+
+    # Inject metadata if any
+    for key, value in experiment.items():
+        matlab_data[key] = value
+
+    # Put time of recording
+    date_info = time.strftime("%d-%m-%Y_%H-%M")
+    matlab_data["date"] = date_info
+
+    output = "%s-%d-trials-%s" % (experiment['initials'],
+                                  n_trials,
+                                  date_info)
+
+    output_folder = os.path.join(DATA_DIR, output)
+    os.makedirs(output_folder)
+
+    savemat(os.path.join(output_folder, "dataset.mat"), matlab_data, oned_as='row')
 
 def main(argv):
     local_time = time.localtime()
-    questions = [("Şu anda ağlıyor musun?",                  "n"),
-                 ("Kış mevsiminde miyiz?",           "n"),
-                 ("Türkiye'nin baskenti Bursa mı?",  "n"),
-                 ("İstanbul'da 2 köprü mü var?",     "y"),
-                 ("Şu an Ortaköy'de misin?",         "y"),
-                 ("Hava karanlık mı?",               "y" if local_time.tm_hour >= 17 else "n"),
-                 ("Kafanda kask var mı?",            "y")]
+    questions = [("Şu anda ağlıyor musun?",                             "n"),
+                 ("Kış mevsiminde miyiz?",                              "n"),
+                 ("Türkiye'nin başkenti Bursa mı?",                     "n"),
+                 ("Bu şehirde iki havalimanı mı var?",                  "y"),
+                 ("Şu an avrupa yakasında mısın?",                      "y"),
+                 ("Hava karanlık mı?",                                  "y" if local_time.tm_hour >= 17 else "n"),
+                 ("Kafanda bir cihaz var mı?",                          "y"),
+                 ("Karşında biri oturuyor mu?",                         "y"),
+                 ("Zemin katta mısın?",                                 "n"),
+                ]
 
     # Shuffle questions
     random.shuffle(questions)
 
     # Set TTS parameters
-    espeak.set_voice("tr")
+    espeak.set_voice("mb-tr1")
     espeak.set_parameter(espeak.Parameter.Pitch, 60)
     espeak.set_parameter(espeak.Parameter.Rate, 150)
     espeak.set_parameter(espeak.Parameter.Range, 600)
@@ -89,7 +145,7 @@ def main(argv):
     dspd = None
     try:
         ssvepd = subprocess.Popen(["./bbb-bci-ssvepd.py", freq1, freq2])
-        dspd = subprocess.Popen(["./bbb-bci-dspd.py"])
+        #dspd = subprocess.Popen(["./bbb-bci-dspd.py"])
     except OSError, e:
         print "Error: Can't launch SSVEP/DSP subprocesses: %s" % e
         sys.exit(2)
@@ -104,45 +160,40 @@ def main(argv):
         except:
             time.sleep(0.5)
 
-    if not sock_connected:
-        print "Can't connect to DSP socket."
-        ssvepd.terminate()
-        ssvepd.wait()
-        dspd.terminate()
-        dspd.wait()
-        sys.exit(4)
-
     # Setup headset
     headset = epoc.EPOC(enable_gyro=False)
-    channel_mask = ["O1", "O2", "P7", "P8"]
-    headset.set_channel_mask(channel_mask)
+    headset.set_channel_mask(["O1", "O2", "P7", "P8"])
 
-    # Experiment data (7 bytes)
-    nb_trials = 3
-    experiment = "OO,27,F" #get_subject_information()
-    sock.send("%7s" % experiment)
+    # Collect experiment information
+    experiment = get_subject_information()
+    experiment['channel_mask'] = headset.channel_mask
+    experiment['n_trials'] = 3
+    experiment['answers'] = [q[1] for q in questions[:experiment['n_trials']]]
 
-    # Send 4 bytes of data for duration
-    sock.send("%4d" % duration)
+    if sock_connected:
+        # FIXME: Experiment data (7 bytes)
+        sock.send("%7s" % experiment)
 
-    # Send comma separated list of enabled channels (49 bytes max.)
-    channel_conf = "CTR," + ",".join(headset.channel_mask)
-    sock.send("%49s" % channel_conf)
+        # Send 4 bytes of data for duration
+        sock.send("%4d" % duration)
 
-    #
+        # Send comma separated list of enabled channels (49 bytes max.)
+        channel_conf = "CTR," + ",".join(headset.channel_mask)
+        sock.send("%49s" % channel_conf)
+
     rest_eegs = []
     ssvep_eegs = []
 
     # Repeat nb_trials time
-    for i in range(nb_trials):
+    for i in range(experiment['n_trials']):
         # Acquire resting data
-        rest_eegs.append(headset.acquire_data(4))
+        rest_eegs.append(headset.acquire_data(duration))
 
         # Ask a question
         espeak.synth(questions[i][0])
 
         while espeak.is_playing():
-            time.sleep(0.2)
+            time.sleep(0.1)
 
         time.sleep(1)
 
@@ -155,21 +206,18 @@ def main(argv):
         # Stop flickering
         ssvepd.send_signal(signal.SIGUSR1)
 
-        # Send the data to DSP block
-        #sock.sendall(ssvep_eeg.tostring())
-
-    for i in range(nb_trials):
-        utils.save_as_matlab(rest_eegs[i], channel_mask, prefix="trial%d-rest-answer-%s-" % (i, questions[i][1]), folder=DATA_DIR)
-        utils.save_as_matlab(ssvep_eegs[i], channel_mask, prefix="trial%d-ssvep-answer-%s-" % (i, questions[i][1]), folder=DATA_DIR)
+    # Save dataset
+    save_as_dataset(rest_eegs, ssvep_eegs, experiment)
 
     # Cleanup
     try:
         headset.disconnect()
-        sock.close()
         ssvepd.terminate()
         ssvepd.wait()
-        dspd.terminate()
-        dspd.wait()
+        if sock_connected:
+            sock.close()
+            dspd.terminate()
+            dspd.wait()
     except e:
         print e
 
