@@ -109,11 +109,17 @@ def main(argv):
                  ("Zemin katta mısın?",                                 "n"),
                 ]
 
+    # For just guiding the user instead of asking questions
+    guide = [
+                ("yes", "Sol"),
+                ("no",  "Sağ"),
+            ]
+
     # Shuffle questions
     random.shuffle(questions)
 
     # Set TTS parameters
-    espeak.set_voice("mb-tr1")
+    espeak.set_voice("tr")
     espeak.set_parameter(espeak.Parameter.Pitch, 60)
     espeak.set_parameter(espeak.Parameter.Rate, 150)
     espeak.set_parameter(espeak.Parameter.Range, 600)
@@ -136,8 +142,9 @@ def main(argv):
         freq1 = argv[1]
         freq2 = argv[2]
         duration = int(argv[3])
+        n_trials = int(argv[4])
     except:
-        print "Usage: %s <frequency 1> <frequency 2> <duration>" % argv[0]
+        print "Usage: %s <frequency 1> <frequency 2> <trial_duration> <n_trials>" % argv[0]
         sys.exit(1)
 
     # Spawn SSVEP process
@@ -167,8 +174,10 @@ def main(argv):
     # Collect experiment information
     experiment = get_subject_information()
     experiment['channel_mask'] = headset.channel_mask
-    experiment['n_trials'] = 3
-    experiment['answers'] = [q[1] for q in questions[:experiment['n_trials']]]
+    experiment['n_trials'] = n_trials
+    cues = [guide[i] for i in [np.random.random_integers(0,1) for j in range(n_trials)]]
+    experiment['cues'] = [c[0] for c in cues]
+    #experiment['answers'] = [q[1] for q in questions[:experiment['n_trials']]]
 
     if sock_connected:
         # FIXME: Experiment data (7 bytes)
@@ -189,8 +198,8 @@ def main(argv):
         # Acquire resting data
         rest_eegs.append(headset.acquire_data(duration))
 
-        # Ask a question
-        espeak.synth(questions[i][0])
+        # Give an auditory cue
+        espeak.synth(cues[i][1])
 
         while espeak.is_playing():
             time.sleep(0.1)
