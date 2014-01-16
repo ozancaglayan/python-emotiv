@@ -52,18 +52,19 @@ def get_subject_information():
 
 def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
     """Save whole recording as a single dataset."""
-
     matlab_data = {}
 
     # len(rest_eegs) == len(ssvep_eegs) == experiment['n_trials']
     n_trials = experiment['n_trials']
 
     trial = np.zeros((n_trials,), dtype=np.object)
+    seq = np.zeros((n_trials,), dtype=np.object)
     rest = np.zeros((n_trials,), dtype=np.object)
     trial_time = np.zeros((n_trials,), dtype=np.object)
 
     for t in range(n_trials):
         trial[t] = ssvep_eegs[t][:, 1:].astype(np.float64).T
+        seq[t] = ssvep_eegs[t][:, 0].T
         rest[t] = rest_eegs[t][:, 1:].astype(np.float64).T
         trial_time[t] = np.array(range(ssvep_eegs[t][:, 0].size)) / 128.0
 
@@ -73,8 +74,8 @@ def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
                       "label"       : np.array(channel_mask, dtype=np.object).reshape((len(channel_mask), 1)),
                       "trial"       : trial,
                       "rest"        : rest,
+                      "seq"         : seq,
                       "time"        : trial_time,
-                      #"sampleinfo"  : np.array([1, nr_samples]),
                      }
 
     matlab_data["data"] = fieldtrip_data
@@ -87,9 +88,10 @@ def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
     date_info = time.strftime("%d-%m-%Y_%H-%M")
     matlab_data["date"] = date_info
 
-    output = "%s-%d-trials-%s" % (experiment['initials'],
-                                  n_trials,
-                                  date_info)
+    output = "%s-%d-trials-%sHz-%sHz-%s" % (experiment['initials'],
+                                            n_trials,
+                                            experiment['freq_left'], experiment['freq_right'],
+                                            date_info)
 
     output_folder = os.path.join(DATA_DIR, output)
     os.makedirs(output_folder)
@@ -108,12 +110,6 @@ def main(argv):
                  ("Karşında biri oturuyor mu?",                         "y"),
                  ("Zemin katta mısın?",                                 "n"),
                 ]
-
-    # For just guiding the user instead of asking questions
-    guide = [
-                ("yes", "Sol"),
-                ("no",  "Sağ"),
-            ]
 
     # Shuffle questions
     random.shuffle(questions)
@@ -135,23 +131,23 @@ def main(argv):
 
     # Experiment duration (default: 4)
     duration = None
-    freq1 = freq2 = None
+    freq_left = freq_right = None
 
     # Parse cmdline args
     try:
-        freq1 = argv[1]
-        freq2 = argv[2]
+        freq_left = argv[1]
+        freq_right = argv[2]
         duration = int(argv[3])
         n_trials = int(argv[4])
     except:
-        print "Usage: %s <frequency 1> <frequency 2> <trial_duration> <n_trials>" % argv[0]
+        print "Usage: %s <frequency left> <frequency right> <trial_duration> <n_trials>" % argv[0]
         sys.exit(1)
 
     # Spawn SSVEP process
     ssvepd = None
     dspd = None
     try:
-        ssvepd = subprocess.Popen(["./bbb-bci-ssvepd.py", freq1, freq2])
+        ssvepd = subprocess.Popen(["./bbb-bci-ssvepd.py", freq_left, freq_right])
         #dspd = subprocess.Popen(["./bbb-bci-dspd.py"])
     except OSError, e:
         print "Error: Can't launch SSVEP/DSP subprocesses: %s" % e
@@ -171,12 +167,23 @@ def main(argv):
     headset = epoc.EPOC(enable_gyro=False)
     headset.set_channel_mask(["O1", "O2", "P7", "P8"])
 
+    # For just guiding the user instead of asking questions
+    guide = [
+                ("left_%s" % freq_left,     "Sol"),
+                ("right_%s"% freq_right,    "Sağ"),
+            ]
+
     # Collect experiment information
     experiment = get_subject_information()
     experiment['channel_mask'] = headset.channel_mask
     experiment['n_trials'] = n_trials
+
     cues = [guide[i] for i in [np.random.random_integers(0,1) for j in range(n_trials)]]
     experiment['cues'] = [c[0] for c in cues]
+
+    # Add flickering frequency informations
+    experiment['freq_left'] = freq_left
+    experiment['freq_right'] = freq_right
     #experiment['answers'] = [q[1] for q in questions[:experiment['n_trials']]]
 
     if sock_connected:
@@ -195,8 +202,8 @@ def main(argv):
 
     # Repeat nb_trials time
     for i in range(experiment['n_trials']):
-        # Acquire resting data
-        rest_eegs.append(headset.acquire_data(duration))
+        # Acquire resting data (A random duration of 2,3 or 4 seconds to avoid adaptation)
+        rest_eegs.append(headset.acquire_data(random.randint(2,4)))
 
         # Give an auditory cue
         espeak.synth(cues[i][1])
