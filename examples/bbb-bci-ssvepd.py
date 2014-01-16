@@ -28,6 +28,8 @@ import Adafruit_BBIO.GPIO as GPIO
 PID_FILE = "/var/run/bbb-bci-ssvepd.pid"
 
 # LED informations
+# P8_9 (Yellow cable) is connected to the left LED
+# P8_10 (Blue cable) is connected to the right LED
 LEDS = [["P8_9",  0, time.time(), 0, 0],
         ["P8_10", 0, time.time(), 0, 0],
        ]
