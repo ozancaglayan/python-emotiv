@@ -86,6 +86,7 @@ def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
 
     # Put time of recording
     date_info = time.strftime("%d-%m-%Y_%H-%M")
+    day_info = time.strftime("%d-%m-%Y")
     matlab_data["date"] = date_info
 
     output = "%s-%d-trials-%sHz-%sHz-%s" % (experiment['initials'],
@@ -93,9 +94,11 @@ def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
                                             experiment['freq_left'], experiment['freq_right'],
                                             date_info)
 
-    output_folder = os.path.join(DATA_DIR, output)
-    os.makedirs(output_folder)
-
+    output_folder = os.path.join(DATA_DIR, day_info, output)
+    try:
+        os.makedirs(output_folder)
+    except:
+        pass
     savemat(os.path.join(output_folder, "dataset.mat"), matlab_data, oned_as='row')
 
 def main(argv):
