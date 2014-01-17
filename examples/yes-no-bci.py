@@ -44,10 +44,12 @@ def get_subject_information():
     initials = raw_input("Initials: ")
     age = raw_input("Age: ")
     sex = raw_input("Sex (M)ale / (F)emale: ")
+    comment = raw_input("Experiment description: ")
     return {
             "age"       :  age,
             "sex"       :  sex,
             "initials"  :  initials,
+            "comment"   :  comment,
            }
 
 def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
@@ -89,10 +91,11 @@ def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
     day_info = time.strftime("%d-%m-%Y")
     matlab_data["date"] = date_info
 
-    output = "%s-%d-trials-%sHz-%sHz-%s" % (experiment['initials'],
-                                            n_trials,
-                                            experiment['freq_left'], experiment['freq_right'],
-                                            date_info)
+    output = "%s-%d-trials-of-%dsecs-%s-%sHz-%sHz-%s" % (experiment['initials'],
+                                                         n_trials, experiment['trial_duration'],
+                                                         experiment['comment'],
+                                                         experiment['freq_left'], experiment['freq_right'],
+                                                         date_info)
 
     output_folder = os.path.join(DATA_DIR, day_info, output)
     try:
@@ -118,7 +121,7 @@ def main(argv):
     random.shuffle(questions)
 
     # Set TTS parameters
-    espeak.set_voice("tr")
+    #espeak.set_voice("en")
     espeak.set_parameter(espeak.Parameter.Pitch, 60)
     espeak.set_parameter(espeak.Parameter.Rate, 150)
     espeak.set_parameter(espeak.Parameter.Range, 600)
@@ -170,19 +173,17 @@ def main(argv):
     headset = epoc.EPOC(enable_gyro=False)
     headset.set_channel_mask(["O1", "O2", "P7", "P8"])
 
-    # For just guiding the user instead of asking questions
-    guide = [
-                ("left_%s" % freq_left,     "Sol"),
-                ("right_%s"% freq_right,    "Sağ"),
-            ]
-
     # Collect experiment information
     experiment = get_subject_information()
     experiment['channel_mask'] = headset.channel_mask
     experiment['n_trials'] = n_trials
+    experiment['trial_duration'] = duration
 
-    cues = [guide[i] for i in [np.random.random_integers(0,1) for j in range(n_trials)]]
-    experiment['cues'] = [c[0] for c in cues]
+    # Equal amount of trials for each LED will be randomized
+    cues = ["Left" for i in range(n_trials/2)] + ["Right" for i in range(n_trials/2)]
+    random.shuffle(cues)
+    random.shuffle(cues)
+    experiment['cues'] = cues
 
     # Add flickering frequency informations
     experiment['freq_left'] = freq_left
@@ -209,7 +210,7 @@ def main(argv):
         rest_eegs.append(headset.acquire_data(random.randint(2,4)))
 
         # Give an auditory cue
-        espeak.synth(cues[i][1])
+        espeak.synth(cues[i])
 
         while espeak.is_playing():
             time.sleep(0.1)
