@@ -359,6 +359,41 @@ class EPOC(object):
 
         return _buffer
 
+    def acquire_data_fast(self, duration):
+        """A more optimized method to acquire data from the EPOC headset without calling get_sample()."""
+
+        def get_level(raw_data, bits):
+            """Returns signal level from raw_data frame."""
+            level = 0
+            for i in range(13, -1, -1):
+                level <<= 1
+                b, o = (bits[i] / 8) + 1, bits[i] % 8
+                level |= (ord(raw_data[b]) >> o) & 1
+            return level
+
+        total_samples = duration * self.sampling_rate
+        _buffer = np.ndarray((total_samples, len(self.channel_mask)),
+                dtype=np.uint16)
+
+        # Loop ctr
+        c = 0
+        # Packet idx to keep track of losses
+        idx = []
+        # pre-generate bit masks for channels
+        bit_indexes = [self.bit_indexes[n] for n in self.channel_mask]
+        while c < total_samples:
+            # Fetch new data
+            raw_data = self._cipher.decrypt(self.endpoint.read(32))
+            # Parse counter
+            ctr = ord(raw_data[0])
+            if ctr < 128:
+                idx.append(ctr)
+                # Finally EEG data
+                _buffer[c] = [get_level(raw_data, bi) for bi in bit_indexes]
+                c += 1
+
+        return idx, _buffer
+
     def get_quality(self, electrode):
         "Return contact quality for the specified electrode."""
         return self.quality.get(electrode, None)
