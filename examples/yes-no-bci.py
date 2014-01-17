@@ -60,14 +60,12 @@ def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
     n_trials = experiment['n_trials']
 
     trial = np.zeros((n_trials,), dtype=np.object)
-    seq = np.zeros((n_trials,), dtype=np.object)
     rest = np.zeros((n_trials,), dtype=np.object)
     trial_time = np.zeros((n_trials,), dtype=np.object)
 
     for t in range(n_trials):
-        trial[t] = ssvep_eegs[t][:, 1:].astype(np.float64).T
-        seq[t] = ssvep_eegs[t][:, 0].T
-        rest[t] = rest_eegs[t][:, 1:].astype(np.float64).T
+        trial[t] = ssvep_eegs[t][:, :].astype(np.float64).T
+        rest[t] = rest_eegs[t][:, :].astype(np.float64).T
         trial_time[t] = np.array(range(ssvep_eegs[t][:, 0].size)) / 128.0
 
     channel_mask = experiment['channel_mask']
@@ -76,7 +74,6 @@ def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
                       "label"       : np.array(channel_mask, dtype=np.object).reshape((len(channel_mask), 1)),
                       "trial"       : trial,
                       "rest"        : rest,
-                      "seq"         : seq,
                       "time"        : trial_time,
                      }
 
@@ -172,6 +169,7 @@ def main(argv):
     # Setup headset
     headset = epoc.EPOC(enable_gyro=False)
     headset.set_channel_mask(["O1", "O2", "P7", "P8"])
+    #headset.set_channel_mask(["O1", "O2"])
 
     # Collect experiment information
     experiment = get_subject_information()
@@ -207,7 +205,9 @@ def main(argv):
     # Repeat nb_trials time
     for i in range(experiment['n_trials']):
         # Acquire resting data (A random duration of 2,3 or 4 seconds to avoid adaptation)
-        rest_eegs.append(headset.acquire_data(random.randint(2,4)))
+        idx, eeg = headset.acquire_data_fast(random.randint(2,4))
+        rest_eegs.append(eeg)
+        print utils.check_packet_drops(idx)
 
         # Give an auditory cue
         espeak.synth(cues[i])
@@ -221,7 +221,9 @@ def main(argv):
         ssvepd.send_signal(signal.SIGUSR1)
 
         # Acquire EEG data for duration seconds
-        ssvep_eegs.append(headset.acquire_data(duration))
+        idx, eeg = headset.acquire_data_fast(duration)
+        ssvep_eegs.append(eeg)
+        print utils.check_packet_drops(idx)
 
         # Stop flickering
         ssvepd.send_signal(signal.SIGUSR1)
@@ -231,8 +233,11 @@ def main(argv):
 
     # Cleanup
     try:
+        print "Disconnecting headset..."
         headset.disconnect()
+        print "Terminating ssvepd..."
         ssvepd.terminate()
+        print "Waiting ssvepd termination..."
         ssvepd.wait()
         if sock_connected:
             sock.close()
