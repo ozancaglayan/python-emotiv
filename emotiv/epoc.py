@@ -371,25 +371,29 @@ class EPOC(object):
                 level |= (ord(raw_data[b]) >> o) & 1
             return level
 
+        bit_indexes = [self.bit_indexes[n] for n in self.channel_mask]
+        # Packet idx to keep track of losses
+        idx = []
         total_samples = duration * self.sampling_rate
-        _buffer = np.ndarray((total_samples, len(self.channel_mask)),
-                dtype=np.uint16)
+
+        # Pre-allocated array
+        _buffer = np.ndarray((total_samples, len(self.channel_mask)), dtype=np.uint16)
+
+        # Acquire in one read, this should be more robust against drops
+        raw_data = self._cipher.decrypt(self.endpoint.read(32 * (total_samples + duration + 1), timeout=(duration+1)*1000))
+
+        # Split data back into 32-byte chunks, skipping 1st packet
+        split_data = [raw_data[i:i + 32] for i in range(32, len(raw_data), 32)]
 
         # Loop ctr
         c = 0
-        # Packet idx to keep track of losses
-        idx = []
-        # pre-generate bit masks for channels
-        bit_indexes = [self.bit_indexes[n] for n in self.channel_mask]
-        while c < total_samples:
-            # Fetch new data
-            raw_data = self._cipher.decrypt(self.endpoint.read(32))
+        for block in split_data:
             # Parse counter
-            ctr = ord(raw_data[0])
+            ctr = ord(block[0])
+            # Skip battery
             if ctr < 128:
                 idx.append(ctr)
-                # Finally EEG data
-                _buffer[c] = [get_level(raw_data, bi) for bi in bit_indexes]
+                _buffer[c] = [get_level(block, bi) for bi in bit_indexes]
                 c += 1
 
         return idx, _buffer
