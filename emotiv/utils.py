@@ -39,7 +39,7 @@ def get_level(raw_data, bits):
         level <<= 1
         b, o = (bits[i] / 8) + 1, bits[i] % 8
         level |= (ord(raw_data[b]) >> o) & 1
-    return level
+    return 0.51*level
 
 def save_as_matlab(_buffer, channel_mask, folder=None, prefix=None, filename=None, metadata=None):
     """Save as matlab data with optional metadata."""
