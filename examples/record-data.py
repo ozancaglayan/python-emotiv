@@ -48,10 +48,13 @@ def main():
         headset.set_channel_mask(channels)
 
     # Acquire
-    data = headset.acquire_data(duration)
+    idx, data = headset.acquire_data_fast(duration)
+
+    #print idx
+    print data
 
     # Record
-    utils.save_as_matlab(data, channels)
+    # utils.save_as_matlab(data, channels)
 
     try:
         headset.disconnect()

@@ -64,8 +64,8 @@ def save_as_dataset(rest_eegs, ssvep_eegs, experiment):
     trial_time = np.zeros((n_trials,), dtype=np.object)
 
     for t in range(n_trials):
-        trial[t] = ssvep_eegs[t][:, :].astype(np.float64).T
-        rest[t] = rest_eegs[t][:, :].astype(np.float64).T
+        trial[t] = ssvep_eegs[t][:, :].T
+        rest[t] = rest_eegs[t][:, :].T
         trial_time[t] = np.array(range(ssvep_eegs[t][:, 0].size)) / 128.0
 
     channel_mask = experiment['channel_mask']
@@ -124,7 +124,7 @@ def main(argv):
     espeak.set_parameter(espeak.Parameter.Range, 600)
 
     # Set niceness of this process
-    os.nice(-15)
+    os.nice(-3)
 
     # Create DATA_DIR if not available
     try:

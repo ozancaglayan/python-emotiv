@@ -77,14 +77,12 @@ def main(freqs):
     for led in LEDS:
         GPIO.setup(led[PIN], GPIO.OUT)
         GPIO.output(led[PIN], led[VALUE])
-        led[HZ] = int(freqs.pop(0))
+        led[HZ] = float(freqs.pop(0))
         led[PERIOD] = 1 / (led[HZ] * 2.0)
 
     # Register signal handlers
     signal.signal(signal.SIGUSR1, sigusr1_handler)
     signal.signal(signal.SIGTERM, sigterm_handler)
-
-    log = ""
 
     if not ENABLED:
         signal.pause()
@@ -97,11 +95,9 @@ def main(freqs):
                     GPIO.output(led[PIN], led[VALUE] ^ 1)
                     led[TIMER] = time.time()
                     led[VALUE] ^= 1
-                    #log += "%dHz\t%.4f\n" % (led[HZ], led[TIMER])
     except KeyboardInterrupt, ke:
         return 2
     finally:
-        #open("timing.txt", "w").write(log)
         cleanup()
         return 0
 

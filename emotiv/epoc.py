@@ -78,6 +78,9 @@ class EPOC(object):
     # Sampling rate: 128Hz (Internal: 2048Hz)
     sampling_rate = 128
 
+    # Vertical resolution interval (0.51uV)
+    vres = 0.51
+
     # Battery levels
     # github.com/openyou/emokit/blob/master/doc/emotiv_protocol.asciidoc
     battery_levels = {247: 99, 246: 97, 245: 93, 244: 89, 243: 85,
@@ -369,7 +372,8 @@ class EPOC(object):
                 level <<= 1
                 b, o = (bits[i] / 8) + 1, bits[i] % 8
                 level |= (ord(raw_data[b]) >> o) & 1
-            return level
+            # Return level in uV (microVolts)
+            return 0.51 * level
 
         bit_indexes = [self.bit_indexes[n] for n in self.channel_mask]
         # Packet idx to keep track of losses
@@ -377,7 +381,7 @@ class EPOC(object):
         total_samples = duration * self.sampling_rate
 
         # Pre-allocated array
-        _buffer = np.ndarray((total_samples, len(self.channel_mask)), dtype=np.uint16)
+        _buffer = np.ndarray((total_samples, len(self.channel_mask)), dtype=np.float64)
 
         # Acquire in one read, this should be more robust against drops
         raw_data = self._cipher.decrypt(self.endpoint.read(32 * (total_samples + duration + 1), timeout=(duration+1)*1000))
@@ -388,6 +392,8 @@ class EPOC(object):
         # Loop ctr
         c = 0
         for block in split_data:
+            if c == total_samples:
+                break
             # Parse counter
             ctr = ord(block[0])
             # Skip battery
