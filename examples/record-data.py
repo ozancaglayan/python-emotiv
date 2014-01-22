@@ -50,8 +50,9 @@ def main():
     # Acquire
     idx, data = headset.acquire_data_fast(duration)
 
-    #print idx
-    print data
+    print "Battery: %d %%" % headset.battery
+    print "Contact qualities"
+    print headset.quality
 
     utils.save_as_matlab(data, headset.channel_mask)
 
