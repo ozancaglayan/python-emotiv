@@ -1,0 +1,97 @@
+function [ results ] = burg_classify(block_size, range)
+    % Bring workspace variables
+    data = evalin('base', 'data');
+    n_trials = evalin('base', 'n_trials');
+    cues = evalin('base', 'cues');
+    freq_left = evalin('base', 'freq_left');
+    freq_right = evalin('base', 'freq_right');
+        
+    if nargin < 2
+        % Range is not given
+        range = 1:length(data.trial{1}(1,:));
+    end
+    
+    do_plots = false;
+    
+    % Channel combination labels
+    labels = {'o1', 'o2', 'o1-o2', 'o1-p7', 'o1-p8', 'o2-p7', 'o2-p8', 'o1-avg', 'o2-avg'};
+
+    % +1 for overall results
+    results = zeros(n_trials + 1, length(labels));
+
+    for t=1:n_trials
+        % Fetch channels
+        o1 = detrend(data.trial{t}(find(strcmp(data.label, 'O1')),range));
+        o2 = detrend(data.trial{t}(find(strcmp(data.label, 'O2')),range));
+        p7 = detrend(data.trial{t}(find(strcmp(data.label, 'P7')),range));
+        p8 = detrend(data.trial{t}(find(strcmp(data.label, 'P8')),range));
+
+        % Common average
+        com_avg = (o1 + o2 + p7 + p8) / 4;
+
+        % Channel combinations
+        chans = [o1' o2' (o1-o2)' (o1-p7)' (o1-p8)' (o2-p7)' (o2-p8)' (o1-com_avg)' (o2-com_avg)'];
+
+        % Trial cue as lowercase
+        cue = strtrim(lower(cues(t,:)));
+        freq_cue = eval(['freq_' cue]);
+
+        % Convert frequencies to numbers
+        left_freq = str2double(freq_left);
+        right_freq = str2double(freq_right);
+
+        % Data points to be summed up for scoring (f, 2*f-1, 2*f, 2*f+1)
+        left_scores = [left_freq left_freq*2-1 left_freq*2 left_freq*2+1];
+        right_scores = [right_freq right_freq*2-1 right_freq*2 right_freq*2+1];
+
+        for j=1:length(chans(1,:))
+            avg = zeros(1,block_size);
+            d = chans(:,j)';
+            lefts = 0;
+            rights = 0;
+            fprintf(1, '\n\nChannel is: %s\n', labels{j});
+
+            for i=1:length(d)/block_size
+                avg = avg + d((i-1)*block_size + 1:i*block_size);
+                %f = abs(real(fft(avg / i))); % Pure FFT
+
+                % Burg with order=32
+                
+                [Pxx, f] = pburg(avg, 32, 1:1:64, 128);
+                Pxx = 10*log10(Pxx);
+                if do_plots
+                    subplot(211);
+                    plot(f, Pxx);grid on;
+                    set(gca, 'XTick', 1:2:64);
+                    title(['Trial ' int2str(t) ' Electrode:' labels{j} ' Cue: ' cue ' ' freq_cue 'Hz (Averaging window: ' int2str(block_size) ')']);
+                    subplot(212);
+                    spectrogram(avg, [], [], [], 128, 'yaxis');
+                    pause(1);
+                end
+
+                % Calculate scores
+                fl_mean = sum(Pxx(left_scores)) / length(left_scores);
+                fr_mean = sum(Pxx(right_scores)) / length(right_scores);
+                if fl_mean > fr_mean
+                    lefts = lefts + 1;
+                else
+                    rights = rights + 1;
+                end
+                fprintf(1, 'Trial %d (Cue: %s (%sHz)): Left->%.2f Right->%.2f\n', t, cue, freq_cue, fl_mean, fr_mean);
+            end
+
+            fprintf(1, 'Left %d, Right %d for cue %s\n', lefts, rights, cue);
+            if (lefts > rights && strcmp(cue, 'left')) || (rights > lefts && strcmp(cue, 'right'))
+                % Correctly classified
+                results(t, j) = 1;
+            end
+
+        end
+    end
+
+    for j=1:length(chans(1,:))
+        results(n_trials + 1, j) = sum(results(1:n_trials, j)) / double(n_trials);
+        fprintf(1, 'Chan: %s, Classification Rate: %.2f\n', labels{j}, results(end, j));
+    end
+end
+
