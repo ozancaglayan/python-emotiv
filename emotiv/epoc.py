@@ -302,7 +302,8 @@ class EPOC(object):
             if ctr < 128:
                 self.counter = ctr
                 # Contact qualities
-                self.quality[self.cq_order[ctr]] = utils.get_level(raw_data, self.bit_indexes["QU"]) / 540.0
+                if self.cq_order[ctr]:
+                    self.quality[self.cq_order[ctr]] = utils.get_level(raw_data, self.bit_indexes["QU"]) / 540.0
                 # Finally EEG data
                 return [0.51 * utils.get_level(raw_data, self.bit_indexes[n]) for n in self.channel_mask]
             else:
@@ -377,7 +378,8 @@ class EPOC(object):
                 _buffer[c] = [0.51 * get_level(block, bi) for bi in bit_indexes]
                 c += 1
                 # Update qualities as well
-                self.quality[self.cq_order[ctr]] = get_level(block, self.bit_indexes["QU"]) / 540.0
+                if self.cq_order[ctr] is not None:
+                    self.quality[self.cq_order[ctr]] = utils.get_level(block, self.bit_indexes["QU"]) / 540.0
             else:
                 # Parse battery level
                 self.battery = self.battery_levels[ctr]
