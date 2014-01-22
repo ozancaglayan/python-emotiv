@@ -112,31 +112,6 @@ class EPOC(object):
     # Finally pattern 77-80 repeats until 127
     cq_order.extend(cq_order[-4:] * 12)
 
-    # Store slices for bit manipulation for convenience
-    # This way we can get EEG data for a channel from a bitarray
-    # using bits[self.__slices["O3"]].
-    # Used by the old BitArray logic.
-    slices = dict((k, v) for k, v in
-                  zip(channels, (slice(8, 22),
-                                 slice(22, 36),
-                                 slice(36, 50),
-                                 slice(50, 64),
-                                 slice(64, 78),
-                                 slice(78, 92),
-                                 slice(92, 106),
-                                 slice(134, 148),
-                                 slice(148, 162),
-                                 slice(162, 176),
-                                 slice(176, 190),
-                                 slice(190, 204),
-                                 slice(204, 218),
-                                 slice(218, 232))))
-
-    # Gyroscope and sequence number slices
-    slices["GYROX"] = slice(233, 240)
-    slices["GYROY"] = slice(240, 248)
-    slices["SEQ#"] = slice(0, 8)
-
     # emokit-style bit indexes to use with utils.get_level()
     bit_indexes = {
         'F3': [10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7],
@@ -329,7 +304,7 @@ class EPOC(object):
                 # Contact qualities
                 self.quality[self.cq_order[ctr]] = utils.get_level(raw_data, self.bit_indexes["QU"]) / 540.0
                 # Finally EEG data
-                return [utils.get_level(raw_data, self.bit_indexes[n]) for n in self.channel_mask]
+                return [0.51 * utils.get_level(raw_data, self.bit_indexes[n]) for n in self.channel_mask]
             else:
                 # Set a synthetic counter for this special packet: 128
                 self.counter = 128
@@ -442,7 +417,7 @@ def main():
                 print "%10s: %5d" % ("Gyro(y)", e.gyroY)
 
                 for i,channel in enumerate(e.channel_mask):
-                    print "%10s: %5d %20s: %.2f" % (channel, data[i], "Quality", e.quality[channel])
+                    print "%10s: %.2f %20s: %.2f" % (channel, data[i], "Quality", e.quality[channel])
         except EPOCTurnedOffError, ete:
             print ete
         except KeyboardInterrupt, ki:
