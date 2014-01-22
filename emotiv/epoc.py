@@ -373,7 +373,7 @@ class EPOC(object):
                 b, o = (bits[i] / 8) + 1, bits[i] % 8
                 level |= (ord(raw_data[b]) >> o) & 1
             # Return level in uV (microVolts)
-            return 0.51 * level
+            return level
 
         bit_indexes = [self.bit_indexes[n] for n in self.channel_mask]
         # Packet idx to keep track of losses
@@ -399,8 +399,13 @@ class EPOC(object):
             # Skip battery
             if ctr < 128:
                 idx.append(ctr)
-                _buffer[c] = [get_level(block, bi) for bi in bit_indexes]
+                _buffer[c] = [0.51 * get_level(block, bi) for bi in bit_indexes]
                 c += 1
+                # Update qualities as well
+                self.quality[self.cq_order[ctr]] = get_level(block, self.bit_indexes["QU"]) / 540.0
+            else:
+                # Parse battery level
+                self.battery = self.battery_levels[ctr]
 
         return idx, _buffer
 
