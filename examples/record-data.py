@@ -53,8 +53,7 @@ def main():
     #print idx
     print data
 
-    # Record
-    # utils.save_as_matlab(data, channels)
+    utils.save_as_matlab(data, headset.channel_mask)
 
     try:
         headset.disconnect()
