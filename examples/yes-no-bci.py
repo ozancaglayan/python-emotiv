@@ -168,7 +168,7 @@ def main(argv):
 
     # Setup headset
     headset = epoc.EPOC(enable_gyro=False)
-    headset.set_channel_mask(["O1", "O2", "P7", "P8"])
+    #headset.set_channel_mask(["O1", "O2", "P7", "P8"])
     #headset.set_channel_mask(["O1", "O2"])
 
     # Collect experiment information
@@ -229,6 +229,7 @@ def main(argv):
         ssvepd.send_signal(signal.SIGUSR1)
 
     # Save dataset
+    experiment['battery'] = headset.battery
     save_as_dataset(rest_eegs, ssvep_eegs, experiment)
 
     # Cleanup
