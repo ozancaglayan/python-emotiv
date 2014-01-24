@@ -2,7 +2,6 @@ function [ results, header ] = burg_classify(block_size, range)
     % Bring workspace variables
     data = evalin('base', 'data');
     n_trials = double(evalin('base', 'n_trials'));
-    trial_duration = double(evalin('base', 'trial_duration'));
     cues = evalin('base', 'cues');
     freq_left = evalin('base', 'freq_left');
     freq_right = evalin('base', 'freq_right');
@@ -64,10 +63,10 @@ function [ results, header ] = burg_classify(block_size, range)
         r_p8 = filtfilt(b, a, data.rest{t}(find(strcmp(data.label, 'P8')),:));
         
         % Detrend channels
-        o1 = detrend(o1); r_o1 = detrend(r_o1);
-        o2 = detrend(o2); r_o2 = detrend(r_o2);
-        p7 = detrend(p7); r_p7 = detrend(r_p7);
-        p8 = detrend(p8); r_p8 = detrend(r_p8);
+        %o1 = detrend(o1); r_o1 = detrend(r_o1);
+        %o2 = detrend(o2); r_o2 = detrend(r_o2);
+        %p7 = detrend(p7); r_p7 = detrend(r_p7);
+        %p8 = detrend(p8); r_p8 = detrend(r_p8);
 
         % Common average of 4 channels
         com_avg = (o1 + o2 + p7 + p8) / 4;
@@ -86,13 +85,13 @@ function [ results, header ] = burg_classify(block_size, range)
             avg_burg = zeros(1, 64);
             r_avg_burg = zeros(1, 64);
             avg_fft = zeros(1, n_fft);
-            d = chans(:,j)';
+            d = detrend(chans(:,j)');
             r_d = r_chans(:,j)';
             lefts = 0;
             rights = 0;
             fprintf(1, '\n\nChannel is: %s, variance: %.2f\n', labels{j}, var(d));
             
-            iterations = length(d)/block_size;
+            iterations = floor(length(d)/block_size);
 
             for i=1:iterations
                 % Time window averaging
@@ -101,14 +100,13 @@ function [ results, header ] = burg_classify(block_size, range)
                 % Burg spectral averaging
                 block = d((i-1)*block_size + 1:i*block_size);
                 %r_block = r_d((i-1)*block_size + 1:i*block_size);
-                [n_Pxx, f] = pburg(block, 32, 1:1:64, 128);
+                [n_Pxx, f] = pburg(block, 64, 1:1:64, 128);
                 avg_burg = avg_burg + n_Pxx;
                 
                 % FFT spectral averaging
                 F = abs(real(fft(block, n_fft)));
                 avg_fft = avg_fft + F;
 
-                %Pxx = 10*log10(avg_burg / i);
                 Pxx = (avg_burg / i);
                 %Pxx = avg_fft / i; % FFT
                 if do_plots
@@ -119,7 +117,7 @@ function [ results, header ] = burg_classify(block_size, range)
                 end
 
                 % Calculate scores
-                Pxx = 10*log10(Pxx);
+                %Pxx = 10*log10(Pxx);
                 fl_mean = sum(Pxx(left_scores)) / length(left_scores);
                 fr_mean = sum(Pxx(right_scores)) / length(right_scores);
                 if fl_mean > fr_mean
@@ -148,20 +146,23 @@ function [ results, header ] = burg_classify(block_size, range)
         results(n_trials + 1, j) = sum(results(1:n_trials, j)) / double(n_trials);
     end
 
-    % Sort them
-    [~, i] = sort(results(n_trials + 1, :), 'descend');
+    % Sort classfication rates
+    [~, i] = sort(results(end, :), 'descend');
     results = results(:, i);
     header = labels(i);
 
     for j=1:length(chans(1,:))
-        fprintf(1, 'Chan: %s, Classification Rate: %.2f\n', header{j}, results(end, j));
+        % Print if classification rate > %50
+        if results(end, j) > 0.50
+            fprintf(1, 'Chan: %s, Classification Rate: %.2f\n', header{j}, results(end, j));
+        end
     end
 
     h = figure;
     
     % Find the channel which maximizes classification rate
     max_chan_label = strtrim(header{1});
-    max_chan_rate = results(n_trials + 1, 1);
+    max_chan_rate = results(end, 1);
     max_chan_idx = find(strcmp(labels, max_chan_label));
     max_chan_data = chans(:, max_chan_idx)';
     
@@ -172,7 +173,7 @@ function [ results, header ] = burg_classify(block_size, range)
         cue = strtrim(lower(cues(i,:)));
         freq_cue = eval(['freq_' cue]);
         
-        is_correct = results(i, max_chan_idx);
+        is_correct = results(i, 1);
         if is_correct
             color = 'b';
         else
@@ -181,14 +182,19 @@ function [ results, header ] = burg_classify(block_size, range)
         
         % Plot maximum performance channel for each trial
         subplot(6, 2, 2*i - 1);
-        plot(data.time{i}, max_chan_data);
+        plot(data.time{i}(range), max_chan_data);
         ylabel('$Amplitude$', 'Interpreter', 'latex');
         title(['(Trial ' num2str(i) ') EEG Signal'], 'Interpreter', 'latex');
 
         subplot(6, 2, 2*i);
         plot(left_bound:right_bound, final_pxx(i, left_bound:right_bound, max_chan_idx), color);
-        ylim([-15 10]);
+        %hold on;
+        %plot(left_scores, final_pxx(i, left_scores, max_chan_idx), 'o', 'color', 'g');
+        %plot(right_scores, final_pxx(i, right_scores, max_chan_idx), '^');
+        set(gca, 'XTick', left_bound:2:right_bound);
+        grid on;
         ylabel('$Power/Hz$', 'Interpreter', 'latex');
+        
         title(['Averaged PSD (Attended $f=' freq_cue 'Hz$)'], 'Interpreter' ,'latex');
     end
     xlabel('Frequency ($Hz$)', 'Interpreter', 'latex');
@@ -206,7 +212,8 @@ function [ results, header ] = burg_classify(block_size, range)
     set(h, 'PaperPositionMode', 'manual');
     set(h, 'PaperPosition', [0 0 width height]);
     
-    s_title = [num2str(n_trials) ' Trials of ' num2str(trial_duration) 'secs, Averaging Window: ' num2str(block_size/128) 's (Classification Rate: %' num2str(100*max_chan_rate, '%.2f') ')'];
+    s_title = ['\parbox[b]{4.2in}{\centering ', num2str(length(range)/block_size), ' seconds (Channel ', upper(max_chan_label), ') - Averaging Window: ', num2str(block_size/128), ' seconds ', ...
+               'Classification Rate: \%', num2str(100*max_chan_rate, '%.2f'), '}'];
     suptitle(s_title);
 
     saveas(h, 'results.pdf');
