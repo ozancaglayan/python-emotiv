@@ -84,6 +84,8 @@ def main(freqs):
     signal.signal(signal.SIGUSR1, sigusr1_handler)
     signal.signal(signal.SIGTERM, sigterm_handler)
 
+    os.nice(-5)
+
     if not ENABLED:
         signal.pause()
 
