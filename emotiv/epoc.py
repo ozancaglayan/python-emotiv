@@ -338,7 +338,7 @@ class EPOC(object):
 
         return _buffer
 
-    def acquire_data_fast(self, duration):
+    def acquire_data_fast(self, duration, stop_callback=None, stop_callback_param=None):
         """A more optimized method to acquire data from the EPOC headset without calling get_sample()."""
 
         def get_level(raw_data, bits):
@@ -361,6 +361,9 @@ class EPOC(object):
 
         # Acquire in one read, this should be more robust against drops
         raw_data = self._cipher.decrypt(self.endpoint.read(32 * (total_samples + duration + 1), timeout=(duration+1)*1000))
+
+        if stop_callback and stop_callback_param:
+            stop_callback(stop_callback_param)
 
         # Split data back into 32-byte chunks, skipping 1st packet
         split_data = [raw_data[i:i + 32] for i in range(32, len(raw_data), 32)]
