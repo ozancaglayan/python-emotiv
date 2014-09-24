@@ -137,6 +137,7 @@ class EPOC(object):
         self.decryption = None
         self.decryption_key = None
         self.headset_on = False
+        self.headset_type = "research"  # Default to research, detect later
         self.enable_gyro = enable_gyro
         self.battery = 0
         self.counter = 0
@@ -182,7 +183,8 @@ class EPOC(object):
             return False
         else:
             if manu == self.MANUFACTURER_DESC:
-                # Found a dongle, check for interface class 3
+                return True
+                # FIXME: This may not be necessary at all Found a dongle, check for interface class 3
                 for interf in device.get_active_configuration():
                     if_str = usb.util.get_string(
                         device, len(self.INTERFACE_DESC),
@@ -214,8 +216,12 @@ class EPOC(object):
 
             # Record some attributes
             self.serial_number = serial
-            self.vendor_id = "%X" % dev.idVendor
-            self.product_id = "%X" % dev.idProduct
+            self.vendor_id = "%x" % dev.idVendor
+            self.product_id = "%x" % dev.idProduct
+
+            if self.product_id == "0001":
+                print "Consumer headset detected."
+                self.headset_type = "consumer"
 
             if self.method == "libusb":
                 # Last interface is the one we need
@@ -249,12 +255,12 @@ class EPOC(object):
         else:
             self.headset_on = True
 
-    def setup_encryption(self, headset_type="research"):
+    def setup_encryption(self):
         """Generate the encryption key and setup Crypto module.
         The key is based on the serial number of the device and the
         information whether it is a research or consumer device.
         """
-        if headset_type == "research":
+        if self.headset_type == "research":
             self.decryption_key = ''.join([self.serial_number[15], '\x00',
                                            self.serial_number[14], '\x54',
                                            self.serial_number[13], '\x10',
@@ -263,7 +269,7 @@ class EPOC(object):
                                            self.serial_number[14], '\x48',
                                            self.serial_number[13], '\x00',
                                            self.serial_number[12], '\x50'])
-        elif headset_type == "consumer":
+        elif self.headset_type == "consumer":
             self.decryption_key = ''.join([self.serial_number[15], '\x00',
                                            self.serial_number[14], '\x48',
                                            self.serial_number[13], '\x00',
