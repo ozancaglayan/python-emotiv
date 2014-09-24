@@ -179,9 +179,11 @@ class EPOC(object):
         except usb.core.USBError, usb_exception:
             # If the udev rule is installed, we shouldn't get an exception
             # for Emotiv device.
+            print usb_exception
             return False
         else:
             if manu and manu.startswith(self.MANUFACTURER_PREFIX):
+                print manu
                 return True
                 # FIXME: This may not be necessary at all Found a dongle, check for interface class 3
                 for interf in device.get_active_configuration():
@@ -203,6 +205,7 @@ class EPOC(object):
             return
 
         devices = usb.core.find(find_all=True, custom_match=self._is_epoc)
+        print "Devices found: %d" % len(devices)
 
         if not devices:
             raise EPOCNotPluggedError("Emotiv EPOC not found.")

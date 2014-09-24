@@ -12,5 +12,5 @@
 #E: MINOR=385
 #E: PRODUCT=1234/ed02/3
 #E: SUBSYSTEM=usb
-ACTION=="add", SUBSYSTEMS=="usb", ENV{ID_VENDOR}=="Emotiv_Systems_Pty_Ltd", MODE="0666"
+ACTION=="add", SUBSYSTEMS=="usb", ENV{ID_VENDOR}=="Emotiv*", MODE="0666"
 ACTION=="add", SUBSYSTEM=="hidraw", ATTRS{interface}=="Emotiv RAW DATA", MODE="0666", SYMLINK+="emotiv_epoc"
