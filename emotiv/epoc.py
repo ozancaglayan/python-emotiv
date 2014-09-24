@@ -69,7 +69,7 @@ class EPOC(object):
 
     # Device descriptions for USB
     INTERFACE_DESC = "Emotiv RAW DATA"
-    MANUFACTURER_DESC = "Emotiv Systems Pty Ltd"
+    MANUFACTURER_PREFIX = "Emotiv Systems"
 
     # Channel names
     channels = ["F3", "FC5", "AF3", "F7", "T7", "P7", "O1",
@@ -175,14 +175,13 @@ class EPOC(object):
     def _is_epoc(self, device):
         """Custom match function for libusb."""
         try:
-            manu = usb.util.get_string(device, len(self.MANUFACTURER_DESC),
-                                       device.iManufacturer)
+            manu = usb.util.get_string(device, 1024, device.iManufacturer)
         except usb.core.USBError, usb_exception:
             # If the udev rule is installed, we shouldn't get an exception
             # for Emotiv device.
             return False
         else:
-            if manu == self.MANUFACTURER_DESC:
+            if manu and manu.startswith(self.MANUFACTURER_PREFIX):
                 return True
                 # FIXME: This may not be necessary at all Found a dongle, check for interface class 3
                 for interf in device.get_active_configuration():
