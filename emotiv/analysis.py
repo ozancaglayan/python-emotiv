@@ -22,7 +22,6 @@ import numpy as np
 from scipy import fftpack, signal
 from scipy.io import loadmat
 
-import spectrum
 import time
 import nitime
 
@@ -39,6 +38,24 @@ def fft(data):
     # Here's the computation part
     power = np.abs(fftpack.fft(signal.detrend(data)))[positive_freqs]
     return freqs, power
+
+def psd_classify_channel(channel, block_size, time_range=None):
+    # High-pass filter
+    Wn = 5 / 64.0
+    b, a = signal.butter(2, Wn, "highpass")
+
+    # Steps between frequency points after PSD estimation (1, 0.5, 0.25, etc)
+    psd_step = 128.0 / block_size
+    psd_res = (64 / psd_step) + 1
+    freqs = np.linspace(0, 64, psd_res)
+
+    # Apply the filter
+    filt_ch = signal.filtfilt(b, a, signal.detrend(channel))
+
+    # Average psd using multi_taper_psd
+    avg_psd = np.average(nitime.algorithms.spectral.multi_taper_psd(filt_ch.reshape((-1, block_size)), Fs=128.0)[1], axis=0)
+
+    return freqs, avg_psd
 
 def psd_classifier(eeg_data, experiment, block_size, time_range=None):
 
@@ -171,4 +188,4 @@ if __name__ == "__main__":
             "freq_left"     : m['freq_left'][0].strip(),
           }
 
-    results = psd_classifier(eeg, exp, 256)
+    #results = psd_classifier(eeg, exp, 256)
