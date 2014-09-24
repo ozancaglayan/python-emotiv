@@ -249,12 +249,12 @@ class EPOC(object):
         else:
             self.headset_on = True
 
-    def setup_encryption(self, research=True):
+    def setup_encryption(self, headset_type="research"):
         """Generate the encryption key and setup Crypto module.
         The key is based on the serial number of the device and the
         information whether it is a research or consumer device.
         """
-        if research:
+        if headset_type == "research":
             self.decryption_key = ''.join([self.serial_number[15], '\x00',
                                            self.serial_number[14], '\x54',
                                            self.serial_number[13], '\x10',
@@ -263,7 +263,7 @@ class EPOC(object):
                                            self.serial_number[14], '\x48',
                                            self.serial_number[13], '\x00',
                                            self.serial_number[12], '\x50'])
-        else:
+        elif headset_type == "consumer":
             self.decryption_key = ''.join([self.serial_number[15], '\x00',
                                            self.serial_number[14], '\x48',
                                            self.serial_number[13], '\x00',
