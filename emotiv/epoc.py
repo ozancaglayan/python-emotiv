@@ -175,7 +175,7 @@ class EPOC(object):
     def _is_epoc(self, device):
         """Custom match function for libusb."""
         try:
-            manu = usb.util.get_string(device, 1024, device.iManufacturer)
+            manu = usb.util.get_string(device, device.iManufacturer)
         except usb.core.USBError, usb_exception:
             # If the udev rule is installed, we shouldn't get an exception
             # for Emotiv device.
@@ -187,9 +187,7 @@ class EPOC(object):
                 return True
                 # FIXME: This may not be necessary at all Found a dongle, check for interface class 3
                 for interf in device.get_active_configuration():
-                    if_str = usb.util.get_string(
-                        device, len(self.INTERFACE_DESC),
-                        interf.iInterface)
+                    if_str = usb.util.get_string(device, interf.iInterface)
                     if if_str == self.INTERFACE_DESC:
                         return True
 
@@ -205,13 +203,12 @@ class EPOC(object):
             return
 
         devices = usb.core.find(find_all=True, custom_match=self._is_epoc)
-        print "Devices found: %d" % len(devices)
 
         if not devices:
             raise EPOCNotPluggedError("Emotiv EPOC not found.")
 
         for dev in devices:
-            serial = usb.util.get_string(dev, 32, dev.iSerialNumber)
+            serial = usb.util.get_string(dev, dev.iSerialNumber)
             if self.serial_number and self.serial_number != serial:
                 # If a special S/N is given, look for it.
                 continue
