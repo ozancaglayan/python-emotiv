@@ -196,13 +196,14 @@ class EPOC(object):
         self.channel_mask = channel_mask
 
     def enumerate(self):
+
         """Traverse through USB bus and enumerate EPOC devices."""
         if self.method == "dummy":
             self.endpoint = open("/dev/urandom")
             self.get_sample = self.__get_sample_dummy
             return
 
-        devices = usb.core.find(find_all=True, custom_match=self._is_epoc)
+        devices = usb.core.find(idVendor=0x1234, find_all=True, custom_match=self._is_epoc)
 
         if not devices:
             raise EPOCNotPluggedError("Emotiv EPOC not found.")
