@@ -4,6 +4,9 @@ Emotiv EPOC Python Interface
 Unmaintained as of January 2015
 -------------
 
+**Please do not e-mail me for questions about this project. I no longer develop it,
+nor test or use it on Emotiv devices. I don't work in this field anymore. Thanks!**
+
 python-emotiv is an open-source library to acquire data from Emotiv EPOC headset.
 Although Emotiv recently provided 32-bit SDK for Linux, we have chosen
 to use the reverse-engineered protocol as the code will be finally deployed
